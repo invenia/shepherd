@@ -27,9 +27,7 @@ class AccessKey(Resource):
     to create and destroy AWS IAM access keys for IAM users.
     """
     def __init__(self):
-        super(AccessKey, self).__init__()
-        self._type = 'AccessKey'
-        self._provider = 'aws'
+        super(AccessKey, self).__init__('AccessKey', 'aws')
         self._user_name = None
         self._access_key_id = None
         self._attributes_map.update({

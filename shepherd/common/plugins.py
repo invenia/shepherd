@@ -125,11 +125,11 @@ class Resource(IPlugin):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self):
+    def __init__(self, type, provider):
         self._local_name = None
         self._global_name = None
-        self._provider = None
-        self._type = None
+        self._provider = provider
+        self._type = type
         self._stack = None
         self._available = False
         self._tags = {}

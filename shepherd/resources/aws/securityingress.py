@@ -12,9 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SecurityGroupIngress(Resource):
     def __init__(self):
-        super(SecurityGroupIngress, self).__init__()
-        self._type = 'SecurityGroupIngress'
-        self._provider = 'aws'
+        super(SecurityGroupIngress, self).__init__('SecurityGroupIngress', 'aws')
         self._group_name = None
         self._group_id = None
         self._src_security_group_name = None
@@ -58,43 +56,10 @@ class SecurityGroupIngress(Resource):
     # with an ip OR a group based rule with source group id
     @Resource.validate_create(logger)
     def create(self):
+        self._set_group_names()
+
         conn = boto.connect_ec2()
-        resp = None
-
-        if self._group_name and not self._group_id:
-            self._group_id = get_security_group(group_name=self._group_name, stack=self.stack).id
-
-        if self._src_security_group_name:
-            if not self._src_group_id:
-                self._src_group_id = get_security_group(
-                    group_name=self._src_security_group_name,
-                    stack=self.stack
-                )
-
-            resp = conn.authorize_security_group(
-                group_id=self._group_id,
-                src_security_group_group_id=self._src_group_id,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-
-        elif self._cidr_ip:
-            resp = conn.authorize_security_group(
-                group_id=self._group_id,
-                cidr_ip=self._cidr_ip,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-        else:
-            raise StackError(
-                'EC2 Security Ingress {} does not have '
-                'a cidr_ip or src security group name set'
-                .format(self._local_name),
-                log=False
-            )
-
+        resp = self._exec(conn.authorize_security_group)
         if resp:
             self._available = True
         else:
@@ -106,36 +71,10 @@ class SecurityGroupIngress(Resource):
 
     @Resource.validate_destroy(logger)
     def destroy(self):
+        self._set_group_names()
+
         conn = boto.connect_ec2()
-        resp = None
-
-        if self._group_name and not self._group_id:
-            self._group_id = get_security_group(group_name=self._group_name, stack=self.stack)
-
-        if self._src_security_group_name:
-            if not self._src_group_id:
-                self._src_group_id = get_security_group(
-                    group_name=self._src_security_group_name,
-                    stack=self.stack
-                )
-
-            resp = conn.revoke_security_group(
-                group_id=self._group_id,
-                src_security_group_group_id=self._src_group_id,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-
-        elif self._cidr_ip:
-            resp = conn.revoke_security_group(
-                group_id=self._group_id,
-                cidr_ip=self._cidr_ip,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-
+        resp = self._exec(conn.revoke_security_group)
         if resp:
             self._available = False
         else:
@@ -144,3 +83,23 @@ class SecurityGroupIngress(Resource):
                 .format(self._local_name, resp),
                 log=False
             )
+
+    def _set_group_names(self):
+        if self._group_name and not self._group_id:
+            self._group_id = get_security_group(group_name=self._group_name, stack=self.stack).id
+
+        if self._src_security_group_name and not self._src_group_id:
+            self._src_group_id = get_security_group(
+                group_name=self._src_security_group_name,
+                stack=self.stack
+            )
+
+    def _exec(self, operation):
+        return operation(
+            group_id=self._group_id,
+            src_security_group_group_id=self._src_group_id,
+            cidr_ip=self._cidr_ip,
+            ip_protocol=self._ip_protocol,
+            from_port=self._from_port,
+            to_port=self._to_port
+        )

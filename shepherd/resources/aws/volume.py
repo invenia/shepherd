@@ -18,9 +18,7 @@ logger = logging.getLogger(__name__)
 
 class Volume(Resource):
     def __init__(self):
-        super(Volume, self).__init__()
-        self._type = 'Volume'
-        self._provider = 'aws'
+        super(Volume, self).__init__('Volume', 'aws')
         self._snapshot_id = None
         self._volume_id = None
         self._availability_zone = None

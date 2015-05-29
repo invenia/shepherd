@@ -16,9 +16,7 @@ logger = logging.getLogger(__name__)
 
 class User(Resource):
     def __init__(self):
-        super(User, self).__init__()
-        self._type = 'User'
-        self._provider = 'aws'
+        super(User, self).__init__('User', 'aws')
         self._user_info = None
         self._groups = []
         self._policies = []

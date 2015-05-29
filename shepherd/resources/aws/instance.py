@@ -43,9 +43,7 @@ def get_block_device_mapping():
 
 class Instance(Resource):
     def __init__(self):
-        super(Instance, self).__init__()
-        self._type = 'Instance'
-        self._provider = 'aws'
+        super(Instance, self).__init__('Instance', 'aws')
         self._availability_zone = None
         self._image_id = None
         self._instance_type = None

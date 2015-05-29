@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 
 class SecurityGroup(Resource):
     def __init__(self):
-        super(SecurityGroup, self).__init__()
-        self._type = 'SecurityGroup'
-        self._provider = 'aws'
+        super(SecurityGroup, self).__init__('SecurityGroup', 'aws')
         self._group_id = None
         self._group_description = None
 
