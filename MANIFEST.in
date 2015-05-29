@@ -1,0 +1,5 @@
+include LICENSE
+include manifests/*
+recursive-include shepherd assets/*
+recursive-include shepherd *.json
+recursive-include shepherd *.schema

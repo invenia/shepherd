@@ -1,0 +1,42 @@
+---
+includes:
+  - common-vars.yml
+
+vars:
+  instance_type: t1.micro
+
+resources:
+  WebServer:
+    provider: aws
+    type: Instance
+    image_id: '{{ webserver_ami }}'
+    instance_type: '{{ instance_type }}'
+    key_name: '{{ key_name }}'
+    user_data: |
+      #!/bin/bash
+      echo "initializing stack"
+    security_groups:
+      - WebServerSecurityGroup
+
+  WebServerSecurityGroup:
+    provider: aws
+    type: SecurityGroup
+    group_description: Enable HTTP access via port 80
+
+  WebserverHTTPIngress:
+    provider: aws
+    type: SecurityGroupIngress
+    group_name: WebServerSecurityGroup
+    cidr_ip: 0.0.0.0/0
+    from_port: '80'
+    ip_protocol: tcp
+    to_port: '80'
+
+  WebserverSSHIngress:
+    provider: aws
+    type: SecurityGroupIngress
+    group_name: WebServerSecurityGroup
+    cidr_ip: 0.0.0.0/0
+    from_port: '22'
+    ip_protocol: tcp
+    to_port: '22'

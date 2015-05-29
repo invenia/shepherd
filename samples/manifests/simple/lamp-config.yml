@@ -1,0 +1,15 @@
+manifest_path: "manifests/simple/lamp-manifest.yml"
+debug: false
+delay: 10
+retries: 60
+
+vars:
+  db_password: Daisy
+  db_root_password: Daisy
+  db_username: Dave
+  key_name: mytest-key
+
+storage:
+    name: DynamoStorage
+    settings:
+        table_name: shepherd-tests

@@ -1,0 +1,10 @@
+*.pyc
+*.sw*
+bin/build/
+build/
+dist/
+shepherd.egg-info/
+.coverage
+.tox/
+venv/
+docs/_build/

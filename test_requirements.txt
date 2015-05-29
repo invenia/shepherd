@@ -1,0 +1,6 @@
+nose
+coverage
+anyconfig
+within
+mock
+moto

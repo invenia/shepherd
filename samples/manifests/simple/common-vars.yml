@@ -1,0 +1,8 @@
+vars:
+  instance_type: t1.micro
+  webserver_ami: ami-abcd1234
+  db_name: MyDatabase
+  db_password: null
+  db_root_password: null
+  db_username: null
+  key_name: null
