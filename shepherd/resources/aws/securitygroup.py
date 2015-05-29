@@ -81,9 +81,7 @@ class SecurityGroup(Resource):
             )
 
     def _create_group(self):
-        """
-        Handles the creation request.
-        """
+        """ Handles the creation request """
         conn = boto.connect_ec2()
         if self._group_id is None:
             logger.debug(
@@ -104,9 +102,7 @@ class SecurityGroup(Resource):
         return True
 
     def _check_created(self):
-        """
-        Checks that group is available.
-        """
+        """ Checks that group is available """
         if get_security_group(group_id=self._group_id):
             logger.info(
                 'EC2 Security Group {} is now available.'

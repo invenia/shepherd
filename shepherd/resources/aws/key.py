@@ -95,9 +95,7 @@ class AccessKey(Resource):
             return False
 
     def _create_key(self):
-        """
-        Handles the creation request.
-        """
+        """ Handles the creation request """
         if self._access_key_id is None:
             logger.debug(
                 'Requesting IAM Access Key for user {}...'
@@ -118,9 +116,7 @@ class AccessKey(Resource):
         return True
 
     def _delete_key(self):
-        """
-        Hanles the deletion request.
-        """
+        """ Handles the deletion request """
         logger.debug(
             'Requesting deletion of IAM Access Key ({})...'
             .format(self._access_key_id)
@@ -135,9 +131,7 @@ class AccessKey(Resource):
         return True
 
     def _check_created(self):
-        """
-        Performs a check that the access key is available.
-        """
+        """ Performs a check that the access key is available """
         if get_access_key(self._global_name, self._access_key_id):
             logger.debug(
                 'AccessKey {} is now available.'
@@ -148,9 +142,7 @@ class AccessKey(Resource):
         return self._available
 
     def _check_deleted(self):
-        """
-        Performs a check to ensure that the key was successfully deleted.
-        """
+        """ Performs a check to ensure that the key was successfully deleted """
         if not get_access_key(self._global_name, self._access_key_id):
             logger.debug('AccessKey {} deleted'.format(self._local_name))
             self._access_key_id = None

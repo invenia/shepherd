@@ -85,9 +85,7 @@ class User(Resource):
         self._available = False
 
     def _create_user(self):
-        """
-        Handles the creation request
-        """
+        """ Handles the creation request """
         if not self._user_info:
             logger.debug('Creating user {}'.format(self._local_name))
             conn = boto.connect_iam()
@@ -96,18 +94,14 @@ class User(Resource):
         return True
 
     def _delete_user(self):
-        """
-        Handles the deletion request.
-        """
+        """ Handles the deletion request """
         conn = boto.connect_iam()
         logger.debug('Deleting user {}'.format(self._local_name))
         conn.delete_user(self._global_name)
         return True
 
     def _create_policies(self):
-        """
-        Creates any required user policies.
-        """
+        """ Creates any required user policies """
         conn = boto.connect_iam()
         logger.debug('Creating policies for user {}'.format(self._local_name))
         for policy in self._policies:
@@ -121,9 +115,7 @@ class User(Resource):
         return True
 
     def _delete_policies(self):
-        """
-        Delete any user policies.
-        """
+        """ Delete any user policies """
         conn = boto.connect_iam()
         logger.debug('Deleting policies for user {}'.format(self._local_name))
         for policy in self._policies:
@@ -147,9 +139,7 @@ class User(Resource):
         return True
 
     def _add_to_groups(self):
-        """
-        Adds the user to the specified groups.
-        """
+        """ Adds the user to the specified groups """
         conn = boto.connect_iam()
         for groupname in self._groups:
             try:
@@ -162,9 +152,7 @@ class User(Resource):
         return True
 
     def _rm_from_groups(self):
-        """
-        Removes the user from specified groups.
-        """
+        """ Removes the user from specified groups """
         conn = boto.connect_iam()
         for groupname in self._groups:
             try:
@@ -177,9 +165,7 @@ class User(Resource):
         return True
 
     def _check_user(self):
-        """
-        Checks user exists.
-        """
+        """ Checks user exists """
         ret = False
         try:
             conn = boto.connect_iam()
