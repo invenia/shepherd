@@ -134,7 +134,7 @@ class Instance(Resource):
                 create_task(
                     'get_instance_id', self._check_spot, ('request_spot',),
                     retries=self.stack.settings['retries'],
-                    delay=self.stack.setting['delay']
+                    delay=self.stack.settings['delay']
                 ),
             )
         else:
@@ -227,7 +227,7 @@ class Instance(Resource):
             security_group_ids=self._security_group_ids,
             placement=self._availability_zone,
             block_device_map=self._block_device_map
-        )
+        )[0]
         return True
 
     def _terminate_instance(self):
@@ -294,13 +294,14 @@ class Instance(Resource):
 
     def _check_spot(self):
         logger.debug(
-            'Checking if spot request {} is filfilled'
+            'Checking if spot request {} is fulfilled'
             .format(self._spot_instance_request.id)
         )
         resp = False
         conn = boto.connect_ec2()
+
         requests = conn.get_all_spot_instance_requests(
-            request_ids=self._spot_instance_request.id
+            request_ids=[self._spot_instance_request.id]
         )
         assert len(requests) == 1
         request = requests[0]
