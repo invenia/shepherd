@@ -28,13 +28,17 @@ def get_access_key(username, access_key):
     return result
 
 
-def get_security_group(group_id=None, group_name=None):
+def get_security_group(group_id=None, group_name=None, stack=None):
     result = None
     conn = boto.connect_ec2()
     resp = None
 
     if group_name:
-        resp = conn.get_all_security_groups(groupnames=[group_name])
+        name = group_name
+        if stack and stack.get_resource_by_name(group_name):
+            name = stack.get_global_resource_name(group_name)
+
+        resp = conn.get_all_security_groups(groupnames=[name])
     elif group_id:
         resp = conn.get_all_security_groups(group_ids=[group_id])
 

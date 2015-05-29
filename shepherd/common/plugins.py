@@ -11,11 +11,15 @@ new features should be seemless.
 """
 import sys
 import inspect
+import logging
 
 from abc import ABCMeta, abstractmethod
 from yapsy.IPlugin import IPlugin
 
 from shepherd.common.exceptions import StackError
+from shepherd.common.utils import setattrs, getattrs
+
+logger = logging.getLogger(__name__)
 
 
 class Task(IPlugin):
@@ -231,6 +235,14 @@ class Resource(IPlugin):
                 return resp
             return function
         return wrap
+
+    def deserialize(self, data):
+        setattrs(self, self._attributes_map, data)
+        logger.debug('Deserialized {} {}'.format(type(self).__name__, self._local_name))
+
+    def serialize(self):
+        logger.debug('Serializing {} {}'.format(type(self).__name__, self._local_name))
+        return getattrs(self, self._attributes_map)
 
     @abstractmethod
     def create(self):

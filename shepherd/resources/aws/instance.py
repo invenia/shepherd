@@ -10,7 +10,6 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import setattrs, getattrs
 from shepherd.resources.aws import get_security_group
 
 SPOT_REQUEST_ACTIVE = 'active'
@@ -75,19 +74,6 @@ class Instance(Resource):
             'spot_instance_request': '_spot_instance_request',
             'terminated': '_terminated',
         })
-
-    def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
-
-        logger.info('Deserialized Instance {}'.format(self._local_name))
-        logger.debug(
-            'name={} | available={}'.format(
-                self._local_name, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing Instance {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
@@ -341,25 +327,10 @@ class Instance(Resource):
     def _get_security_group_ids(self):
         if not self._security_group_ids:
             for sg in self._security_groups:
-                    self._security_group_ids.append(
-                        self._get_group_id(sg)
-                    )
+                self._security_group_ids.append(
+                    get_security_group(group_name=sg, stack=self.stack)
+                )
         return True
-
-    def _get_group_id(self, group_name):
-        global_group_name = group_name
-        group_id = None
-
-        if self.stack.get_resource_by_name(group_name):
-            global_group_name = self.stack.get_global_resource_name(
-                group_name
-            )
-
-        group = get_security_group(group_name=global_group_name)
-        if group:
-            group_id = group.id
-
-        return group_id
 
     def _get_volume_id(self, volume_name):
         volume_id = None

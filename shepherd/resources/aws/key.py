@@ -15,7 +15,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import pascal_to_underscore, setattrs, getattrs
+from shepherd.common.utils import pascal_to_underscore
 from shepherd.resources.aws import get_access_key
 
 logger = logging.getLogger(__name__)
@@ -38,22 +38,12 @@ class AccessKey(Resource):
         })
 
     def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
+        super(AccessKey, self).deserialize(data)
 
         for key in data:
             attr = pascal_to_underscore(key)
             if attr == 'access_key':
                 self._access_key_id = data[key]['AccessKeyId']
-
-        logger.info('Deserialized AccessKey {}'.format(self._local_name))
-        logger.debug(
-            'name={}, user_name={} | accesskey={} | available={}'.format(
-                self._local_name, self._user_name, self._access_key_id, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing IAMAccesskey {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []

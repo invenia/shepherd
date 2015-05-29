@@ -9,7 +9,6 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import setattrs, getattrs
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +27,6 @@ class User(Resource):
             'groups': '_groups',
             'policies': '_policies',
         })
-
-    def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
-
-        logger.info('Deserialized User {}'.format(self._local_name))
-        logger.debug(
-            'name={} | available={}'.format(
-                self._local_name, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing User {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []

@@ -9,7 +9,7 @@ from arbiter.sync import run_tasks
 # from shepherd.resource import Resource, TemplateObject
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import pascal_to_underscore, setattrs, getattrs
+from shepherd.common.utils import pascal_to_underscore
 from shepherd.resources.aws import get_volume
 
 DEFAULT_VOL_SIZE = 128
@@ -44,22 +44,12 @@ class Volume(Resource):
         return self._volume_id
 
     def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
+        super(Volume, self).deserialize(data)
 
         for key in data:
             attr = pascal_to_underscore(key)
             if attr == 'volumeid':
                 self._volume_id = data[key]
-
-        logger.info('Deserialized Volume {}'.format(self._local_name))
-        logger.debug(
-            'name={}, availability_zone={} | available={}'.format(
-                self._local_name, self._availability_zone, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing Volume {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
