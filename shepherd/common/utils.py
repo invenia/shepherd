@@ -36,6 +36,44 @@ def validate_config(config):
         ConfigValidationError(exc.message)
 
 
+def setattrs(obj, attrmap, values):
+    """
+    Handles setting object attributes from dict.
+
+    :param obj: the object with the attributes being set.
+    :param attrmap: a dict mapping dict keys to attribute names, where the
+        keys match the expected keys in values (underscore case) and the
+        values are the attribute names.
+    :param values: the dict whose values are mapping to the object.
+    :return: the updated object
+    """
+    for key in values:
+        attr = pascal_to_underscore(key)
+        if attr in attrmap:
+            setattr(obj, attrmap[attr], values[key])
+
+    return obj
+
+
+def getattrs(obj, attrmap):
+    """
+    Handles extracting object attributes into a dict.
+
+    :param obj: the object to extract the attributes from.
+    :param attrmap: a dict mapping dict keys to attribute names, where the
+        keys match the keys of the resulting dict and the values match their
+        corresponding attributes.
+    :return: the result dict.
+    """
+    result = {}
+
+    for key in attrmap:
+        if attrmap[key] in obj.__dict__:
+            result[key] = getattr(obj, attrmap[key])
+
+    return result
+
+
 def dict_contains(superdict, subdict):
     """
     Returns a boolean as to whether the

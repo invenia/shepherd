@@ -13,14 +13,13 @@ from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import setattrs, getattrs
 from shepherd.resources.aws import get_security_group
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityGroup(Resource):
-
     def __init__(self):
         super(SecurityGroup, self).__init__()
         self._type = 'SecurityGroup'
@@ -28,30 +27,20 @@ class SecurityGroup(Resource):
         self._group_id = None
         self._group_description = None
 
+        self._attributes_map.update({
+            'group_id': '_group_id',
+            'group_description': '_group_description'
+        })
+
     def deserialize(self, data):
-        super(SecurityGroup, self).deserialize(data)
-
-        for key in data:
-            attr = pascal_to_underscore(key)
-
-            if attr == 'group_id':
-                self._group_id = data[key]
-            elif key.lower() == 'group_description':
-                self._group_description = data[key]
+        setattrs(self, self._attributes_map, data)
 
         logger.info('Deserialized SecurityGroup {}'.format(self._local_name))
         logger.debug('name={} | available={}'.format(self._local_name, self._available))
 
     def serialize(self):
         logger.info('Serializing SecurityGroup {}'.format(self._local_name))
-
-        result = super(SecurityGroup, self).serialize()
-        result.update({
-            'group_id': self._group_id,
-            'group_description': self._group_description,
-        })
-
-        return result
+        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []

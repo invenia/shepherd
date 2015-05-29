@@ -5,14 +5,13 @@ import boto
 
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import setattrs, getattrs
 from shepherd.resources.aws import get_security_group
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityGroupIngress(Resource):
-
     def __init__(self):
         super(SecurityGroupIngress, self).__init__()
         self._type = 'SecurityGroupIngress'
@@ -26,28 +25,19 @@ class SecurityGroupIngress(Resource):
         self._from_port = None
         self._to_port = None
 
+        self._attributes_map.update({
+            'group_name': '_group_name',
+            'group_id': '_group_id',
+            'src_security_group_name': '_src_security_group_name',
+            'src_group_id': '_src_group_id',
+            'cidr_ip': '_cidr_ip',
+            'ip_protocol': '_ip_protocol',
+            'from_port': '_from_port',
+            'to_port': '_to_port',
+        })
+
     def deserialize(self, data):
-        super(SecurityGroupIngress, self).deserialize(data)
-
-        for key in data:
-            attr = pascal_to_underscore(key)
-
-            if attr == 'group_name':
-                self._group_name = data[key]
-            elif attr == 'group_id':
-                self._group_id = data[key]
-            elif attr == 'src_security_group_name':
-                self._src_security_group_name = data[key]
-            elif attr == 'src_group_id':
-                self._src_group_id = data[key]
-            elif attr == 'cidr_ip':
-                self._cidr_ip = data[key]
-            elif attr == 'ip_protocol':
-                self._ip_protocol = data[key]
-            elif attr == 'from_port':
-                self._from_port = data[key]
-            elif attr == 'to_port':
-                self._to_port = data[key]
+        setattrs(self, self._attributes_map, data)
 
         logger.info('Deserialized SecurityGroupIngress {}'.format(self._local_name))
         src = self._src_security_group_name if self._src_security_group_name else self._cidr_ip
@@ -63,20 +53,7 @@ class SecurityGroupIngress(Resource):
 
     def serialize(self):
         logger.info('Serializing EC2 Security Group {}'.format(self._local_name))
-
-        result = super(SecurityGroupIngress, self).serialize()
-        result.update({
-            'group_name': self._group_name,
-            'group_id': self._group_id,
-            'src_security_group_name': self._src_security_group_name,
-            'src_group_id': self._src_group_id,
-            'cidr_ip': self._cidr_ip,
-            'ip_protocol': self._ip_protocol,
-            'from_port': self._from_port,
-            'to_port': self._to_port,
-        })
-
-        return result
+        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []

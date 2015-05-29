@@ -114,6 +114,14 @@ class Resource(IPlugin):
         self._stack = None
         self._available = False
         self._tags = {}
+        self._attributes_map = {
+            'local_name': '_local_name',
+            'global_name': '_global_name',
+            'provider': '_provider',
+            'type': '_type',
+            'available': '_available',
+            'tags': '_tags',
+        }
 
     @property
     def local_name(self):
@@ -223,51 +231,6 @@ class Resource(IPlugin):
                 return resp
             return function
         return wrap
-
-    @abstractmethod
-    def serialize(self):
-        """
-        Returns a dict representing the resources state.
-
-        NOTE: You will always want a super(Resource, self).serialize()
-        from your resources serialize methods
-        """
-        return {
-            'local_name': self._local_name,
-            'global_name': self._global_name,
-            'provider': self._provider,
-            'type': self._type,
-            'available': self._available,
-            'tags': self.tags,
-        }
-
-    @abstractmethod
-    def deserialize(self, data):
-        """
-        Sets the object variables based on the given dict.
-
-        NOTE:
-        - this is a bit of a hack.  Normally, this would be a factory,
-        but we want to be able to use this for both reading resources from the
-        manifest and loading stack state.
-        - You will always want a super(Resource, self).deserialize()
-        from your resources deserialize methods
-        """
-        for key in data:
-            lower_key = key.lower()
-
-            if lower_key == 'local_name':
-                self._local_name = data[key]
-            elif lower_key == 'global_name':
-                self._global_name = data[key]
-            elif lower_key == 'provider':
-                self._provider = data[key]
-            elif lower_key == 'type':
-                self._type = data[key]
-            elif lower_key == 'available':
-                self._available = data[key]
-            elif lower_key == 'tags':
-                self._tags = data[key]
 
     @abstractmethod
     def create(self):

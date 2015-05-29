@@ -10,7 +10,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import setattrs, getattrs
 from shepherd.resources.aws import get_security_group
 
 SPOT_REQUEST_ACTIVE = 'active'
@@ -19,6 +19,26 @@ INST_RUNNING_STATE = 'running'
 INST_REACHABLE_STATE = 'passed'
 
 logger = logging.getLogger(__name__)
+
+
+def get_block_device_mapping():
+    mapping = BlockDeviceMapping()
+
+    eph0 = BlockDeviceType()
+    eph1 = BlockDeviceType()
+    eph2 = BlockDeviceType()
+    eph3 = BlockDeviceType()
+    eph0.ephemeral_name = 'ephemeral0'
+    eph1.ephemeral_name = 'ephemeral1'
+    eph2.ephemeral_name = 'ephemeral2'
+    eph3.ephemeral_name = 'ephemeral3'
+
+    mapping['/dev/sdb'] = eph0
+    mapping['/dev/sdc'] = eph1
+    mapping['/dev/sdd'] = eph1
+    mapping['/dev/sde'] = eph1
+
+    return mapping
 
 
 class Instance(Resource):
@@ -39,51 +59,25 @@ class Instance(Resource):
         self._security_group_ids = []
         self._spot_instance_request = None
         self._reservation = None
-        self._block_device_map = BlockDeviceMapping()
+        self._block_device_map = get_block_device_mapping()
         self._terminated = True
 
-        eph0 = BlockDeviceType()
-        eph1 = BlockDeviceType()
-        eph2 = BlockDeviceType()
-        eph3 = BlockDeviceType()
-        eph0.ephemeral_name = 'ephemeral0'
-        eph1.ephemeral_name = 'ephemeral1'
-        eph2.ephemeral_name = 'ephemeral2'
-        eph3.ephemeral_name = 'ephemeral3'
-
-        self._block_device_map['/dev/sdb'] = eph0
-        self._block_device_map['/dev/sdc'] = eph1
-        self._block_device_map['/dev/sdd'] = eph1
-        self._block_device_map['/dev/sde'] = eph1
+        self._attributes_map.update({
+            'availability_zone': '_availability_zone',
+            'image_id': '_image_id',
+            'instance_type': '_instance_type',
+            'security_groups': '_security_groups',
+            'key_name': '_key_name',
+            'spot_price': '_spot_price',
+            'volumes': '_volumes',
+            'user_data': '_user_data',
+            'instance_id': '_instance_id',
+            'spot_instance_request': '_spot_instance_request',
+            'terminated': '_terminated',
+        })
 
     def deserialize(self, data):
-        super(Instance, self).deserialize(data)
-
-        for key in data:
-            attr = pascal_to_underscore(key)
-
-            if attr == 'availability_zone':
-                self._availability_zone = data[key]
-            elif attr == 'image_id':
-                self._image_id = data[key]
-            elif attr == 'instance_type':
-                self._instance_type = data[key]
-            elif attr == 'security_groups':
-                self._security_groups = data[key]
-            elif attr == 'key_name':
-                self._key_name = data[key]
-            elif attr == 'spot_price':
-                self._spot_price = data[key]
-            elif attr == 'volumes':
-                self._volumes = data[key]
-            elif attr == 'user_data':
-                self._user_data = data[key]
-            elif attr == 'instance_id':
-                self._instance_id = data[key]
-            elif attr == 'spot_instance_request':
-                self._spot_instance_request = data[key]
-            elif attr == 'terminated':
-                self._terminated = data[key]
+        setattrs(self, self._attributes_map, data)
 
         logger.info('Deserialized Instance {}'.format(self._local_name))
         logger.debug(
@@ -93,23 +87,7 @@ class Instance(Resource):
 
     def serialize(self):
         logger.info('Serializing Instance {}'.format(self._local_name))
-        result = super(Instance, self).serialize()
-
-        result.update({
-            'availability_zone': self._availability_zone,
-            'image_id': self._image_id,
-            'instance_type': self._instance_type,
-            'security_groups': self._security_groups,
-            'key_name': self._key_name,
-            'spot_price': self._spot_price,
-            'volumes': self._volumes,
-            'user_data': self._user_data,
-            'instance_id': self._instance_id,
-            'spot_instance_request': self._spot_instance_request,
-            'terminated': self._terminated
-        })
-
-        return result
+        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []

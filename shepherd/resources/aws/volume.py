@@ -9,7 +9,7 @@ from arbiter.sync import run_tasks
 # from shepherd.resource import Resource, TemplateObject
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import pascal_to_underscore, setattrs, getattrs
 from shepherd.resources.aws import get_volume
 
 DEFAULT_VOL_SIZE = 128
@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class Volume(Resource):
-
     def __init__(self):
         super(Volume, self).__init__()
         self._type = 'Volume'
@@ -30,30 +29,27 @@ class Volume(Resource):
         self._volume_type = "io1"
         self._encrypted = False
 
+        self._attributes_map.update({
+            'snapshot_id': '_snapshot_id',
+            'volume_id': '_volume_id',
+            'availability_zone': '_availability_zone',
+            'iops': '_iops',
+            'size': '_size',
+            'encrypted': '_encrypted',
+            'volume_type': '_volume_type',
+        })
+
     @property
     def volume_id(self):
         return self._volume_id
 
     def deserialize(self, data):
-        super(Volume, self).deserialize(data)
+        setattrs(self, self._attributes_map, data)
 
         for key in data:
             attr = pascal_to_underscore(key)
-
-            if attr == 'snapshot_id':
-                self._snapshot_id = data[key]
-            elif attr == 'volumeid':
+            if attr == 'volumeid':
                 self._volume_id = data[key]
-            elif attr == 'availability_zone':
-                self._availability_zone = data[key]
-            elif attr == 'iops':
-                self._iops = data[key]
-            elif attr == 'size':
-                self._size = data[key]
-            elif attr == 'encrypted':
-                self._encrypted = data[key]
-            elif attr == 'volume_type':
-                self._volume_type = data[key]
 
         logger.info('Deserialized Volume {}'.format(self._local_name))
         logger.debug(
@@ -63,19 +59,7 @@ class Volume(Resource):
 
     def serialize(self):
         logger.info('Serializing Volume {}'.format(self._local_name))
-
-        result = super(Volume, self).serialize()
-        result.update({
-            'snapshot_id': self._snapshot_id,
-            'volume_id': self._volume_id,
-            'availability_zone': self._availability_zone,
-            'iops': self._iops,
-            'size': self._size,
-            'volume_type': self._volume_type,
-            'encrypted': self._encrypted,
-        })
-
-        return result
+        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []

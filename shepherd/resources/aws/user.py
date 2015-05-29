@@ -9,13 +9,12 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import setattrs, getattrs
 
 logger = logging.getLogger(__name__)
 
 
 class User(Resource):
-
     def __init__(self):
         super(User, self).__init__()
         self._type = 'User'
@@ -24,18 +23,14 @@ class User(Resource):
         self._groups = []
         self._policies = []
 
+        self._attributes_map.update({
+            'user_info': '_user_info',
+            'groups': '_groups',
+            'policies': '_policies',
+        })
+
     def deserialize(self, data):
-        super(User, self).deserialize(data)
-
-        for key in data:
-            attr = pascal_to_underscore(key)
-
-            if attr == 'user_info':
-                self._user_info = data[key]
-            elif attr == 'groups':
-                self._groups = data[key]
-            elif attr == 'policies':
-                self._policies = data[key]
+        setattrs(self, self._attributes_map, data)
 
         logger.info('Deserialized User {}'.format(self._local_name))
         logger.debug(
@@ -45,15 +40,7 @@ class User(Resource):
 
     def serialize(self):
         logger.info('Serializing User {}'.format(self._local_name))
-
-        results = super(User, self).serialize()
-        results.update({
-            'user_info': self._user_info,
-            'groups': self._groups,
-            'policies': self._policies,
-        })
-
-        return results
+        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
