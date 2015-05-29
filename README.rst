@@ -1,10 +1,7 @@
 =======
 Shepherd
 =======
-.. image:: https://travis-ci.org/invenia/shepherd.svg?branch=master
-  :target: https://travis-ci.org/invenia/shepherd?branch=master
-.. image:: https://coveralls.io/repos/invenia/shepherd/badge.png?branch=master
-  :target: https://coveralls.io/r/invenia/shepherd?branch=master
+|build| |docs| |coverage|
 
 Shepherd is a pluggable resource provisioning framework, similar to Amazon's
 cloudformation but faster, more flexibility and cloud provider independent.
@@ -69,3 +66,10 @@ To provision and deprovision a stack::
 License
 =======
 Shepherd is provided under an MPL License.
+
+.. |build| image:: https://travis-ci.org/invenia/shepherd.svg?branch=master
+  :target: https://travis-ci.org/invenia/shepherd?branch=master
+.. |coverage| image:: https://coveralls.io/repos/invenia/shepherd/badge.png?branch=master
+  :target: https://coveralls.io/r/invenia/shepherd?branch=master
+.. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
+  :target: https://shepherd.readthedocs.org/en/latest/
