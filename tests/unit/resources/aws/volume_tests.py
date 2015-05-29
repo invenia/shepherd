@@ -98,6 +98,7 @@ class TestVolume(TestCase):
 
         volume = Volume()
         self.test_volume['snapshot_id'] = snapshot.id
+        self.test_volume['size'] = None
         volume.deserialize(self.test_volume)
         volume.stack = self.mack
         volume.create()
