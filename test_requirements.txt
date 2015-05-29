@@ -4,3 +4,4 @@ anyconfig
 within
 mock
 moto
+coveralls
