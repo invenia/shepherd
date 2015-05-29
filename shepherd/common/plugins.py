@@ -33,7 +33,10 @@ class Task(IPlugin):
         """
         Takes an undefined set of name arguments.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "run" was not '
+            'implemented in the Task abstract base class'
+        )
 
 
 class Parser(IPlugin):
@@ -57,7 +60,10 @@ class Parser(IPlugin):
         It optionally takes a config which could contain default input values
         to use.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "run" was not '
+            'implemented in the Parser abstract base class'
+        )
 
 
 class Storage(IPlugin):
@@ -82,7 +88,10 @@ class Storage(IPlugin):
         that match to those tags. Returning a list of
         the stack names that match.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "search" was not '
+            'implemented in the Storage abstract base class'
+        )
 
     @abstractmethod
     def load(self, name):
@@ -92,7 +101,10 @@ class Storage(IPlugin):
         Search the store for the serialized stack with
         that name.  Returns a single stack dict.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "load" was not '
+            'implemented in the Storage abstract base class'
+        )
 
     @abstractmethod
     def dump(self, stack):
@@ -100,7 +112,10 @@ class Storage(IPlugin):
         Takes a stack dict and stores it
         in the datastore of your choice.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "dump" was not '
+            'implemented in the Storage abstract base class'
+        )
 
 
 class Resource(IPlugin):

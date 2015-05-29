@@ -10,6 +10,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
+from shepherd.common.utils import tasks_passed
 from shepherd.resources.aws import get_security_group
 
 SPOT_REQUEST_ACTIVE = 'active'
@@ -144,14 +145,10 @@ class Instance(Resource):
         tasks = common_tasks + type_specific_tasks
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.warn(
-                'Failed to provision instance {}\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
-
-        self._available = True
+        self._available = tasks_passed(
+            results, logger,
+            msg='Failed to provision instance {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logging)
     def destroy(self):
@@ -170,12 +167,10 @@ class Instance(Resource):
         )
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.warn(
-                'Failed to deprovision instance {}\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to de provision instance {}'.format(self._local_name)
+        )
 
     # Might want to organize this and create tags better
     def attach_volumes(self):

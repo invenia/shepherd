@@ -13,6 +13,7 @@ from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
+from shepherd.common.utils import tasks_passed
 from shepherd.resources.aws import get_security_group
 
 logger = logging.getLogger(__name__)
@@ -51,9 +52,10 @@ class SecurityGroup(Resource):
         )
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.debug('Failed to provision security group {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to provision security group {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logger)
     def destroy(self):

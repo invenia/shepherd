@@ -87,3 +87,27 @@ def dict_contains(superdict, subdict):
             return False
 
     return True
+
+
+def tasks_passed(results, logger, msg=None, exception=None):
+    """
+    Logs a warning msg and returns a bool if results contains
+    any failures.
+    """
+    resp = True
+    if len(results.failed) > 0:
+        full_msg = '{}.\nCompleted={}\nFailed={}'.format(
+            msg, results.completed, results.failed
+        )
+
+        if exception:
+            logger.error(full_msg)
+            if exception.__name__ == 'StackError':
+                exception(full_msg, name=__name__)
+            else:
+                exception(full_msg)
+        else:
+            logger.warn(full_msg)
+            resp = False
+
+    return resp

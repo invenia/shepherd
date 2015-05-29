@@ -9,7 +9,7 @@ from arbiter.sync import run_tasks
 # from shepherd.resource import Resource, TemplateObject
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import pascal_to_underscore, tasks_passed
 from shepherd.resources.aws import get_volume
 
 DEFAULT_VOL_SIZE = 128
@@ -72,10 +72,10 @@ class Volume(Resource):
             ),
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.debug('Failed to provision volume {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to provision volume {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logging)
     def destroy(self):

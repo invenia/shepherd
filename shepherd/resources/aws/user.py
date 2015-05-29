@@ -9,6 +9,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
+from shepherd.common.utils import tasks_passed
 
 logger = logging.getLogger(__name__)
 
@@ -51,15 +52,10 @@ class User(Resource):
             create_task('create_policies', self._create_policies, ('check_user',)),
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.warn(
-                'Failed to provision user {}.\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
-
-        self._available = True
+        self._available = tasks_passed(
+            results, logger,
+            msg='Failed to provision user {}'.format(self._local_name),
+        )
 
     @Resource.validate_destroy(logger)
     def destroy(self):
@@ -74,15 +70,10 @@ class User(Resource):
             create_task('delete_user', self._delete_user, ('check_user',)),
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.debug(
-                'Failed to deprovision user {}\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
-
-        self._available = False
+        self._available = not tasks_passed(
+            results, logger,
+            msg='Failed to deprovision user {}'.format(self._local_name)
+        )
 
     def _create_user(self):
         """ Handles the creation request """

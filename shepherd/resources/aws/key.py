@@ -15,7 +15,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import pascal_to_underscore
+from shepherd.common.utils import pascal_to_underscore, tasks_passed
 from shepherd.resources.aws import get_access_key
 
 logger = logging.getLogger(__name__)
@@ -73,10 +73,10 @@ class AccessKey(Resource):
             )
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.debug('Failed to provision key {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to provision key {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logger)
     def destroy(self):
@@ -90,9 +90,10 @@ class AccessKey(Resource):
         )
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.debug('Failed to deprovision key {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to deprovision key {}'.format(self._local_name)
+        )
 
     def _create_key(self):
         """ Handles the creation request """
