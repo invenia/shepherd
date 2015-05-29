@@ -132,3 +132,13 @@ class TestInstance(TestCase):
         instance.stack = self.mack
         self.mock_create_dependencies()
         instance.destroy()
+
+    @mock_ec2
+    def test_spot(self):
+        self.test_instance['spot_price'] = 0.5
+        instance = Instance()
+        instance.deserialize(self.test_instance)
+        instance.stack = self.mack
+        self.mock_create_dependencies()
+        instance.create()
+        instance.destroy()

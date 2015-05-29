@@ -1,3 +1,5 @@
+import boto
+
 from unittest import TestCase
 from datetime import datetime
 from mock import MagicMock
@@ -86,4 +88,18 @@ class TestVolume(TestCase):
         volume = Volume()
         volume.deserialize(self.test_volume)
         volume.stack = self.mack
+        volume.destroy()
+
+    @mock_ec2
+    def test_with_snapshot(self):
+        conn = boto.connect_ec2()
+        boto_volume = conn.create_volume(80, "us-east-1a")
+        snapshot = boto_volume.create_snapshot('a test snapshot')
+
+        volume = Volume()
+        self.test_volume['snapshot_id'] = snapshot.id
+        self.test_volume['size'] = None
+        volume.deserialize(self.test_volume)
+        volume.stack = self.mack
+        volume.create()
         volume.destroy()

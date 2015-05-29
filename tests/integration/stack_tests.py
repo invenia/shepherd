@@ -1,8 +1,7 @@
-import sys
 import os
 import fnmatch
 
-from unittest import TestCase, skipIf
+from unittest import TestCase
 from moto import mock_iam, mock_ec2, mock_dynamodb
 
 from within.shell import working_directory
@@ -151,7 +150,6 @@ class TestStack(TestCase):
         )
         self.assertEquals(len(resources), 0)
 
-    @skipIf(sys.version > '3', 'Moto dynamo endpoints fail under python3')
     @mock_iam()
     @mock_ec2()
     @mock_dynamodb()
@@ -161,7 +159,6 @@ class TestStack(TestCase):
 
         self.stack.provision_resources()
 
-    @skipIf(sys.version > '3', 'Moto dynamo endpoints fail under python3')
     @mock_iam()
     @mock_ec2()
     @mock_dynamodb
@@ -172,7 +169,6 @@ class TestStack(TestCase):
         self.stack.provision_resources()
         self.stack.deprovision_resources()
 
-    @skipIf(sys.version > '3', 'Moto dynamo endpoints fail under python3')
     @mock_iam()
     @mock_ec2()
     @mock_dynamodb()
@@ -195,7 +191,6 @@ class TestStack(TestCase):
 
         self.stack._config._settings['storage']['name'] = 'DynamoStorage'
 
-    @skipIf(sys.version > '3', 'Moto dynamo endpoints fail under python3')
     @mock_iam()
     @mock_ec2()
     @mock_dynamodb()
@@ -211,7 +206,6 @@ class TestStack(TestCase):
 
         self.stack._config._settings['storage']['name'] = 'DynamoStorage'
 
-    @skipIf(sys.version > '3', 'Moto dynamo endpoints fail under python3')
     @mock_iam()
     @mock_ec2()
     @mock_dynamodb()

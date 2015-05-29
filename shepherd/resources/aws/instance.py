@@ -10,7 +10,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import setattrs, getattrs
+from shepherd.common.utils import tasks_passed
 from shepherd.resources.aws import get_security_group
 
 SPOT_REQUEST_ACTIVE = 'active'
@@ -43,9 +43,7 @@ def get_block_device_mapping():
 
 class Instance(Resource):
     def __init__(self):
-        super(Instance, self).__init__()
-        self._type = 'Instance'
-        self._provider = 'aws'
+        super(Instance, self).__init__('Instance', 'aws')
         self._availability_zone = None
         self._image_id = None
         self._instance_type = None
@@ -75,19 +73,6 @@ class Instance(Resource):
             'spot_instance_request': '_spot_instance_request',
             'terminated': '_terminated',
         })
-
-    def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
-
-        logger.info('Deserialized Instance {}'.format(self._local_name))
-        logger.debug(
-            'name={} | available={}'.format(
-                self._local_name, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing Instance {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
@@ -147,7 +132,7 @@ class Instance(Resource):
                 create_task(
                     'get_instance_id', self._check_spot, ('request_spot',),
                     retries=self.stack.settings['retries'],
-                    delay=self.stack.setting['delay']
+                    delay=self.stack.settings['delay']
                 ),
             )
         else:
@@ -158,14 +143,10 @@ class Instance(Resource):
         tasks = common_tasks + type_specific_tasks
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.warn(
-                'Failed to provision instance {}\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
-
-        self._available = True
+        self._available = tasks_passed(
+            results, logger,
+            msg='Failed to provision instance {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logging)
     def destroy(self):
@@ -184,12 +165,10 @@ class Instance(Resource):
         )
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.warn(
-                'Failed to deprovision instance {}\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to de provision instance {}'.format(self._local_name)
+        )
 
     # Might want to organize this and create tags better
     def attach_volumes(self):
@@ -246,7 +225,7 @@ class Instance(Resource):
             security_group_ids=self._security_group_ids,
             placement=self._availability_zone,
             block_device_map=self._block_device_map
-        )
+        )[0]
         return True
 
     def _terminate_instance(self):
@@ -313,13 +292,14 @@ class Instance(Resource):
 
     def _check_spot(self):
         logger.debug(
-            'Checking if spot request {} is filfilled'
+            'Checking if spot request {} is fulfilled'
             .format(self._spot_instance_request.id)
         )
         resp = False
         conn = boto.connect_ec2()
+
         requests = conn.get_all_spot_instance_requests(
-            request_ids=self._spot_instance_request.id
+            request_ids=[self._spot_instance_request.id]
         )
         assert len(requests) == 1
         request = requests[0]
@@ -341,25 +321,10 @@ class Instance(Resource):
     def _get_security_group_ids(self):
         if not self._security_group_ids:
             for sg in self._security_groups:
-                    self._security_group_ids.append(
-                        self._get_group_id(sg)
-                    )
+                self._security_group_ids.append(
+                    get_security_group(group_name=sg, stack=self.stack)
+                )
         return True
-
-    def _get_group_id(self, group_name):
-        global_group_name = group_name
-        group_id = None
-
-        if self.stack.get_resource_by_name(group_name):
-            global_group_name = self.stack.get_global_resource_name(
-                group_name
-            )
-
-        group = get_security_group(group_name=global_group_name)
-        if group:
-            group_id = group.id
-
-        return group_id
 
     def _get_volume_id(self, volume_name):
         volume_id = None

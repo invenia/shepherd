@@ -14,7 +14,7 @@ from arbiter.sync import run_tasks
 from shepherd.config import Config
 from shepherd.manifest import Manifest
 from shepherd.common.exceptions import PluginError, StackError
-from shepherd.common.utils import dict_contains
+from shepherd.common.utils import dict_contains, tasks_passed
 
 logger = logging.getLogger(__name__)
 _DEFAULT_NAME_FMT = '{stack_name}_{stack_creation}'
@@ -277,13 +277,12 @@ class Stack(object):
         # This should be in a try except cause arbiter won't catch anything
         logger.info("Provisioning Resources ...")
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            msg = 'Failed to provision resources.\nCompleted={}\nFailed={}'.format(
-                results.completed, results.failed
-            ),
-            logger.error(msg)
-            raise StackError(msg, name=__name__)
+        tasks_passed(
+            results,
+            logger,
+            msg='Failed to provision resources',
+            exception=StackError
+        )
 
     def deprovision_resources(self, resources=None):
         """
@@ -338,13 +337,12 @@ class Stack(object):
         # This should be in a try except
         logger.info("Deprovisioning Resources ...")
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            msg = 'Failed to deprovision resources.\nCompleted={}\nFailed={}'.format(
-                results.completed, results.failed
-            )
-            logger.error(msg)
-            raise StackError(msg, name=__name__)
+        tasks_passed(
+            results,
+            logger,
+            msg='Failed to deprovision resources',
+            exception=StackError
+        )
 
     def deserialize_resources(self, resource_list):
         """

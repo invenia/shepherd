@@ -15,7 +15,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import pascal_to_underscore, setattrs, getattrs
+from shepherd.common.utils import pascal_to_underscore, tasks_passed
 from shepherd.resources.aws import get_access_key
 
 logger = logging.getLogger(__name__)
@@ -27,9 +27,7 @@ class AccessKey(Resource):
     to create and destroy AWS IAM access keys for IAM users.
     """
     def __init__(self):
-        super(AccessKey, self).__init__()
-        self._type = 'AccessKey'
-        self._provider = 'aws'
+        super(AccessKey, self).__init__('AccessKey', 'aws')
         self._user_name = None
         self._access_key_id = None
         self._attributes_map.update({
@@ -38,22 +36,12 @@ class AccessKey(Resource):
         })
 
     def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
+        super(AccessKey, self).deserialize(data)
 
         for key in data:
             attr = pascal_to_underscore(key)
             if attr == 'access_key':
                 self._access_key_id = data[key]['AccessKeyId']
-
-        logger.info('Deserialized AccessKey {}'.format(self._local_name))
-        logger.debug(
-            'name={}, user_name={} | accesskey={} | available={}'.format(
-                self._local_name, self._user_name, self._access_key_id, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing IAMAccesskey {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
@@ -83,10 +71,10 @@ class AccessKey(Resource):
             )
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.debug('Failed to provision key {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to provision key {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logger)
     def destroy(self):
@@ -100,14 +88,13 @@ class AccessKey(Resource):
         )
         results = run_tasks(tasks)
 
-        if len(results.failed) > 0:
-            logger.debug('Failed to deprovision key {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to deprovision key {}'.format(self._local_name)
+        )
 
     def _create_key(self):
-        """
-        Handles the creation request.
-        """
+        """ Handles the creation request """
         if self._access_key_id is None:
             logger.debug(
                 'Requesting IAM Access Key for user {}...'
@@ -128,9 +115,7 @@ class AccessKey(Resource):
         return True
 
     def _delete_key(self):
-        """
-        Hanles the deletion request.
-        """
+        """ Handles the deletion request """
         logger.debug(
             'Requesting deletion of IAM Access Key ({})...'
             .format(self._access_key_id)
@@ -145,9 +130,7 @@ class AccessKey(Resource):
         return True
 
     def _check_created(self):
-        """
-        Performs a check that the access key is available.
-        """
+        """ Performs a check that the access key is available """
         if get_access_key(self._global_name, self._access_key_id):
             logger.debug(
                 'AccessKey {} is now available.'
@@ -158,9 +141,7 @@ class AccessKey(Resource):
         return self._available
 
     def _check_deleted(self):
-        """
-        Performs a check to ensure that the key was successfully deleted.
-        """
+        """ Performs a check to ensure that the key was successfully deleted """
         if not get_access_key(self._global_name, self._access_key_id):
             logger.debug('AccessKey {} deleted'.format(self._local_name))
             self._access_key_id = None

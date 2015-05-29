@@ -5,7 +5,6 @@ import boto
 
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import setattrs, getattrs
 from shepherd.resources.aws import get_security_group
 
 logger = logging.getLogger(__name__)
@@ -13,9 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SecurityGroupIngress(Resource):
     def __init__(self):
-        super(SecurityGroupIngress, self).__init__()
-        self._type = 'SecurityGroupIngress'
-        self._provider = 'aws'
+        super(SecurityGroupIngress, self).__init__('SecurityGroupIngress', 'aws')
         self._group_name = None
         self._group_id = None
         self._src_security_group_name = None
@@ -35,25 +32,6 @@ class SecurityGroupIngress(Resource):
             'from_port': '_from_port',
             'to_port': '_to_port',
         })
-
-    def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
-
-        logger.info('Deserialized SecurityGroupIngress {}'.format(self._local_name))
-        src = self._src_security_group_name if self._src_security_group_name else self._cidr_ip
-        logger.debug(
-            (
-                'name={} | groupname={} | sourcesecuritygroupname/cidr_ip={} | '
-                'ipprotocol={} | fromport={} | toport={} | available={}'
-            ).format(
-                self._local_name, self._group_name, src,
-                self._ip_protocol, self._from_port, self._to_port, self._available
-            )
-        )
-
-    def serialize(self):
-        logger.info('Serializing EC2 Security Group {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
@@ -78,42 +56,10 @@ class SecurityGroupIngress(Resource):
     # with an ip OR a group based rule with source group id
     @Resource.validate_create(logger)
     def create(self):
+        self._set_group_names()
+
         conn = boto.connect_ec2()
-        resp = None
-
-        if self._group_name and not self._group_id:
-            self._group_id = self._get_group_id(self._group_name)
-
-        if self._src_security_group_name:
-            if not self._src_group_id:
-                self._src_group_id = self._get_group_id(
-                    self._src_security_group_name
-                )
-
-            resp = conn.authorize_security_group(
-                group_id=self._group_id,
-                src_security_group_group_id=self._src_group_id,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-
-        elif self._cidr_ip:
-            resp = conn.authorize_security_group(
-                group_id=self._group_id,
-                cidr_ip=self._cidr_ip,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-        else:
-            raise StackError(
-                'EC2 Security Ingress {} does not have '
-                'a cidr_ip or src security group name set'
-                .format(self._local_name),
-                log=False
-            )
-
+        resp = self._exec(conn.authorize_security_group)
         if resp:
             self._available = True
         else:
@@ -125,35 +71,10 @@ class SecurityGroupIngress(Resource):
 
     @Resource.validate_destroy(logger)
     def destroy(self):
+        self._set_group_names()
+
         conn = boto.connect_ec2()
-        resp = None
-
-        if self._group_name and not self._group_id:
-            self._group_id = self._get_group_id(self._group_name)
-
-        if self._src_security_group_name:
-            if not self._src_group_id:
-                self._src_group_id = self._get_group_id(
-                    self._src_security_group_name
-                )
-
-            resp = conn.revoke_security_group(
-                group_id=self._group_id,
-                src_security_group_group_id=self._src_group_id,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-
-        elif self._cidr_ip:
-            resp = conn.revoke_security_group(
-                group_id=self._group_id,
-                cidr_ip=self._cidr_ip,
-                ip_protocol=self._ip_protocol,
-                from_port=self._from_port,
-                to_port=self._to_port
-            )
-
+        resp = self._exec(conn.revoke_security_group)
         if resp:
             self._available = False
         else:
@@ -163,17 +84,22 @@ class SecurityGroupIngress(Resource):
                 log=False
             )
 
-    def _get_group_id(self, group_name):
-        global_group_name = group_name
-        group_id = None
+    def _set_group_names(self):
+        if self._group_name and not self._group_id:
+            self._group_id = get_security_group(group_name=self._group_name, stack=self.stack).id
 
-        if self.stack.get_resource_by_name(group_name):
-            global_group_name = self.stack.get_global_resource_name(
-                group_name
+        if self._src_security_group_name and not self._src_group_id:
+            self._src_group_id = get_security_group(
+                group_name=self._src_security_group_name,
+                stack=self.stack
             )
 
-        group = get_security_group(group_name=global_group_name)
-        if group:
-            group_id = group.id
-
-        return group_id
+    def _exec(self, operation):
+        return operation(
+            group_id=self._group_id,
+            src_security_group_group_id=self._src_group_id,
+            cidr_ip=self._cidr_ip,
+            ip_protocol=self._ip_protocol,
+            from_port=self._from_port,
+            to_port=self._to_port
+        )

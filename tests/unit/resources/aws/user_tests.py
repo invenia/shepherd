@@ -1,3 +1,5 @@
+import boto
+
 from unittest import TestCase
 from mock import MagicMock
 from moto import mock_iam
@@ -79,4 +81,16 @@ class Testuser(TestCase):
         user = User()
         user.deserialize(self.test_user)
         user.stack = self.mack
+        user.destroy()
+
+    @mock_iam
+    def test_with_group(self):
+        conn = boto.connect_iam()
+        conn.create_group('my-group')
+
+        user = User()
+        self.test_user['groups'] = ['my-group']
+        user.deserialize(self.test_user)
+        user.stack = self.mack
+        user.create()
         user.destroy()

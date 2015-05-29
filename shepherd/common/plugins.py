@@ -11,11 +11,15 @@ new features should be seemless.
 """
 import sys
 import inspect
+import logging
 
 from abc import ABCMeta, abstractmethod
 from yapsy.IPlugin import IPlugin
 
 from shepherd.common.exceptions import StackError
+from shepherd.common.utils import setattrs, getattrs
+
+logger = logging.getLogger(__name__)
 
 
 class Task(IPlugin):
@@ -29,7 +33,10 @@ class Task(IPlugin):
         """
         Takes an undefined set of name arguments.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "run" was not '
+            'implemented in the Task abstract base class'
+        )
 
 
 class Parser(IPlugin):
@@ -53,7 +60,10 @@ class Parser(IPlugin):
         It optionally takes a config which could contain default input values
         to use.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "run" was not '
+            'implemented in the Parser abstract base class'
+        )
 
 
 class Storage(IPlugin):
@@ -78,7 +88,10 @@ class Storage(IPlugin):
         that match to those tags. Returning a list of
         the stack names that match.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "search" was not '
+            'implemented in the Storage abstract base class'
+        )
 
     @abstractmethod
     def load(self, name):
@@ -88,7 +101,10 @@ class Storage(IPlugin):
         Search the store for the serialized stack with
         that name.  Returns a single stack dict.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "load" was not '
+            'implemented in the Storage abstract base class'
+        )
 
     @abstractmethod
     def dump(self, stack):
@@ -96,7 +112,10 @@ class Storage(IPlugin):
         Takes a stack dict and stores it
         in the datastore of your choice.
         """
-        return
+        raise NotImplementedError(
+            'The abstractmethod "dump" was not '
+            'implemented in the Storage abstract base class'
+        )
 
 
 class Resource(IPlugin):
@@ -106,11 +125,11 @@ class Resource(IPlugin):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self):
+    def __init__(self, type, provider):
         self._local_name = None
         self._global_name = None
-        self._provider = None
-        self._type = None
+        self._provider = provider
+        self._type = type
         self._stack = None
         self._available = False
         self._tags = {}
@@ -231,6 +250,14 @@ class Resource(IPlugin):
                 return resp
             return function
         return wrap
+
+    def deserialize(self, data):
+        setattrs(self, self._attributes_map, data)
+        logger.debug('Deserialized {} {}'.format(type(self).__name__, self._local_name))
+
+    def serialize(self):
+        logger.debug('Serializing {} {}'.format(type(self).__name__, self._local_name))
+        return getattrs(self, self._attributes_map)
 
     @abstractmethod
     def create(self):

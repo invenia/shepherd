@@ -9,16 +9,14 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import setattrs, getattrs
+from shepherd.common.utils import tasks_passed
 
 logger = logging.getLogger(__name__)
 
 
 class User(Resource):
     def __init__(self):
-        super(User, self).__init__()
-        self._type = 'User'
-        self._provider = 'aws'
+        super(User, self).__init__('User', 'aws')
         self._user_info = None
         self._groups = []
         self._policies = []
@@ -28,19 +26,6 @@ class User(Resource):
             'groups': '_groups',
             'policies': '_policies',
         })
-
-    def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
-
-        logger.info('Deserialized User {}'.format(self._local_name))
-        logger.debug(
-            'name={} | available={}'.format(
-                self._local_name, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing User {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
@@ -65,15 +50,10 @@ class User(Resource):
             create_task('create_policies', self._create_policies, ('check_user',)),
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.warn(
-                'Failed to provision user {}.\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
-
-        self._available = True
+        self._available = tasks_passed(
+            results, logger,
+            msg='Failed to provision user {}'.format(self._local_name),
+        )
 
     @Resource.validate_destroy(logger)
     def destroy(self):
@@ -88,20 +68,13 @@ class User(Resource):
             create_task('delete_user', self._delete_user, ('check_user',)),
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.debug(
-                'Failed to deprovision user {}\nCompleted={}\nFailed={}'
-                .format(self._local_name, results.completed, results.failed)
-            )
-            return False
-
-        self._available = False
+        self._available = not tasks_passed(
+            results, logger,
+            msg='Failed to deprovision user {}'.format(self._local_name)
+        )
 
     def _create_user(self):
-        """
-        Handles the creation request
-        """
+        """ Handles the creation request """
         if not self._user_info:
             logger.debug('Creating user {}'.format(self._local_name))
             conn = boto.connect_iam()
@@ -110,18 +83,14 @@ class User(Resource):
         return True
 
     def _delete_user(self):
-        """
-        Handles the deletion request.
-        """
+        """ Handles the deletion request """
         conn = boto.connect_iam()
         logger.debug('Deleting user {}'.format(self._local_name))
         conn.delete_user(self._global_name)
         return True
 
     def _create_policies(self):
-        """
-        Creates any required user policies.
-        """
+        """ Creates any required user policies """
         conn = boto.connect_iam()
         logger.debug('Creating policies for user {}'.format(self._local_name))
         for policy in self._policies:
@@ -135,9 +104,7 @@ class User(Resource):
         return True
 
     def _delete_policies(self):
-        """
-        Delete any user policies.
-        """
+        """ Delete any user policies """
         conn = boto.connect_iam()
         logger.debug('Deleting policies for user {}'.format(self._local_name))
         for policy in self._policies:
@@ -161,9 +128,7 @@ class User(Resource):
         return True
 
     def _add_to_groups(self):
-        """
-        Adds the user to the specified groups.
-        """
+        """ Adds the user to the specified groups """
         conn = boto.connect_iam()
         for groupname in self._groups:
             try:
@@ -176,9 +141,7 @@ class User(Resource):
         return True
 
     def _rm_from_groups(self):
-        """
-        Removes the user from specified groups.
-        """
+        """ Removes the user from specified groups """
         conn = boto.connect_iam()
         for groupname in self._groups:
             try:
@@ -191,9 +154,7 @@ class User(Resource):
         return True
 
     def _check_user(self):
-        """
-        Checks user exists.
-        """
+        """ Checks user exists """
         ret = False
         try:
             conn = boto.connect_iam()

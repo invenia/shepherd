@@ -26,7 +26,7 @@ from yapsy.PluginFileLocator import IPluginFileAnalyzer
 from yapsy.PluginFileLocator import PluginFileAnalyzerWithInfoFile
 from attrdict import AttrDict
 
-from shepherd.common.exceptions import PluginError
+# from shepherd.common.exceptions import PluginError
 from shepherd.common.plugins import Resource
 from shepherd.common.plugins import Task
 from shepherd.common.plugins import Storage
@@ -183,21 +183,22 @@ class Config(object):
         else:
             raise KeyError('No config with the name {} exists'.format(name))
 
-    def run(self, task, **kwargs):
-        """
-        Searches for the task to apply to the stack.
-        Searches both the default paths as well as
+    # Unclear whether to keep this
+    # def run(self, task, **kwargs):
+    #     """
+    #     Searches for the task to apply to the stack.
+    #     Searches both the default paths as well as
 
-        :param task: the name of the task you want to run.
-        :param kwargs: a dictionary of parameters to be passed to the task.
-        """
-        tasks = self.get_plugins(category_name='Task', plugin_name=task)
+    #     :param task: the name of the task you want to run.
+    #     :param kwargs: a dictionary of parameters to be passed to the task.
+    #     """
+    #     tasks = self.get_plugins(category_name='Task', plugin_name=task)
 
-        if tasks:
-            task = tasks[0]
-            task.run(**kwargs)
-        else:
-            raise PluginError('Failed to locate task {}'.format(task))
+    #     if tasks:
+    #         task = tasks[0]
+    #         task.run(**kwargs)
+    #     else:
+    #         raise PluginError('Failed to locate task {}'.format(task))
 
     def get_plugins(self, category_name=None, plugin_name=None):
         """

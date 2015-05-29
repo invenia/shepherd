@@ -1,14 +1,12 @@
-import sys
 import boto
 
-from unittest import TestCase, skipIf
+from unittest import TestCase
 from datetime import datetime
 from moto import mock_dynamodb
 
 from shepherd.storage.dynamo import DynamoStorage
 
 
-@skipIf(sys.version > '3', 'Moto dynamo endpoints fail under python3')
 class TestDynamoStorage(TestCase):
     def setUp(self):
         name_fmt = '{stack_name}_{stack_creation}'

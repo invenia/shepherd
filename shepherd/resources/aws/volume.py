@@ -9,7 +9,7 @@ from arbiter.sync import run_tasks
 # from shepherd.resource import Resource, TemplateObject
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.common.utils import pascal_to_underscore, setattrs, getattrs
+from shepherd.common.utils import pascal_to_underscore, tasks_passed
 from shepherd.resources.aws import get_volume
 
 DEFAULT_VOL_SIZE = 128
@@ -18,9 +18,7 @@ logger = logging.getLogger(__name__)
 
 class Volume(Resource):
     def __init__(self):
-        super(Volume, self).__init__()
-        self._type = 'Volume'
-        self._provider = 'aws'
+        super(Volume, self).__init__('Volume', 'aws')
         self._snapshot_id = None
         self._volume_id = None
         self._availability_zone = None
@@ -44,22 +42,12 @@ class Volume(Resource):
         return self._volume_id
 
     def deserialize(self, data):
-        setattrs(self, self._attributes_map, data)
+        super(Volume, self).deserialize(data)
 
         for key in data:
             attr = pascal_to_underscore(key)
             if attr == 'volumeid':
                 self._volume_id = data[key]
-
-        logger.info('Deserialized Volume {}'.format(self._local_name))
-        logger.debug(
-            'name={}, availability_zone={} | available={}'.format(
-                self._local_name, self._availability_zone, self._available)
-        )
-
-    def serialize(self):
-        logger.info('Serializing Volume {}'.format(self._local_name))
-        return getattrs(self, self._attributes_map)
 
     def get_dependencies(self):
         deps = []
@@ -82,10 +70,10 @@ class Volume(Resource):
             ),
         )
         results = run_tasks(tasks)
-
-        if len(results.failed) > 0:
-            logger.debug('Failed to provision volume {}'.format(self._local_name))
-            return False
+        return tasks_passed(
+            results, logger,
+            msg='Failed to provision volume {}'.format(self._local_name)
+        )
 
     @Resource.validate_destroy(logging)
     def destroy(self):
