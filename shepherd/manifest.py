@@ -223,28 +223,6 @@ class Manifest(object):
             logger.info('Removing {}'.format(self._working_dir))
             rmtree(self._working_dir)
 
-    def export_cfn(self):
-        if "cfn-compatible" in self._settings and self._settings["cfn-compatible"]:
-            parameters = self._vars.items()
-
-            # Validate the cfn compatible files
-
-            paramsfile = os.path.join(self._working_dir, "params.json")
-            logger.debug(
-                'Writing boto cfn compatible params to {}'.format(paramsfile)
-            )
-            with open(paramsfile, 'w+') as fobj:
-                fobj.write(json.dumps(parameters, indent=1, sort_keys=True))
-
-            templatefile = os.path.join(self._working_dir, "template.json")
-            logger.debug(
-                'Writing boto cfn compatible template to {}'.format(
-                    templatefile
-                )
-            )
-            with open(templatefile, 'w+') as fobj:
-                fobj.write(json.dumps(self._template, indent=1, sort_keys=True))
-
 
 class Loader(object):
     """
