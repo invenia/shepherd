@@ -1,6 +1,10 @@
 =======
 Shepherd
 =======
+.. image:: https://travis-ci.org/invenia/shepherd.svg?branch=master
+  :target: https://travis-ci.org/invenia/shepherd?branch=master
+.. image:: https://coveralls.io/repos/invenia/shepherd/badge.png?branch=master
+  :target: https://coveralls.io/r/invenia/shepherd?branch=master
 
 Shepherd is a pluggable resource provisioning framework, similar to Amazon's
 cloudformation but faster, more flexibility and cloud provider independent.
