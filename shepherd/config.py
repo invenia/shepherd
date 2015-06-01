@@ -15,7 +15,6 @@ import sys
 import inspect
 import fnmatch
 import logging
-import copy
 import anyconfig
 
 from os.path import dirname, join, abspath
@@ -32,7 +31,7 @@ from shepherd.common.plugins import Task
 from shepherd.common.plugins import Storage
 from shepherd.common.plugins import Parser
 from shepherd.common.plugins import is_plugin
-from shepherd.common.utils import validate_config
+from shepherd.common.utils import validate_config, configure_logging
 
 if sys.version > '3':
     from configparser import ConfigParser
@@ -47,7 +46,7 @@ _BUILTIN_PATHS = [
 ]
 _DEFAULT_SETTINGS = AttrDict({
     'manifest_path': '',
-    'debug': True,
+    'verbosity': 2,
     'retries': 120,
     'delay': 5,
     'vars': {},
@@ -66,6 +65,7 @@ class Config(object):
     plugins and executing given tasks.
     """
     _configs = {}
+    logging_verbosity = 0
 
     def __init__(self, settings):
         self._settings = settings
@@ -77,6 +77,14 @@ class Config(object):
         self._stacks = []
 
         validate_config(self.settings)
+        if Config.logging_verbosity < self.settings.verbosity:
+            configure_logging(self.settings.verbosity)
+            Config.logging_verbosity = self.settings.verbosity
+            logger.info(
+                'Increased logging verbosity from {} to {} with the new config...'
+                .format(Config.logging_verbosity, self.settings.verbosity)
+            )
+
         self._configure_plugins()
 
     def _configure_plugins(self):
@@ -220,13 +228,13 @@ class Config(object):
             )
 
             if plugin_info:
-                results.append(copy.deepcopy(plugin_info.plugin_object))
+                results.append(plugin_info.plugin_object.__class__())
 
         elif category_name and not plugin_name:
             plugin_infos = self._plugins.getPluginsOfCategory(category_name)
 
             for plugin_info in plugin_infos:
-                results.append(copy.deepcopy(plugin_info.plugin_object))
+                results.append(plugin_info.plugin_object.__class__())
 
         elif plugin_name and not category_name:
             for category in self._plugins.getCategories():
@@ -236,13 +244,13 @@ class Config(object):
                 )
 
                 if plugin_info:
-                    results.append(copy.deepcopy(plugin_info.plugin_object))
+                    results.append(plugin_info.plugin_object.__class__())
 
         elif not category_name and not plugin_name:
             plugin_infos = self._plugins.getAllPlugins()
 
             for plugin_info in plugin_infos:
-                results.append(copy.deepcopy(plugin_info.plugin_object))
+                results.append(plugin_info.plugin_object.__class__())
 
         return results
 

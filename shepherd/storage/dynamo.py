@@ -11,15 +11,14 @@ from __future__ import print_function
 import time
 import boto
 import json
-import logging
 
 from attrdict import AttrDict
 from boto.dynamodb.condition import EQ
 from boto.dynamodb.exceptions import DynamoDBResponseError, DynamoDBKeyNotFoundError
 
+from shepherd.common.utils import get_logger
 from shepherd.common.plugins import Storage
 
-logger = logging.getLogger(__name__)
 
 DEFAULT_SETTINGS = AttrDict({
     'table_name': 'stacks',
@@ -40,7 +39,7 @@ def dynamize(stack):
     for key in stack:
         if isinstance(stack[key], dict) or isinstance(stack[key], AttrDict):
             stack[key] = json.dumps(dict(stack[key]))
-            logger.debug('dynamize - key={}, value={}\n'.format(key, stack[key]))
+            get_logger(stack).debug('dynamize - key={}, value={}\n'.format(key, stack[key]))
 
         elif isinstance(stack[key], list):
             stack[key] = json.dumps(list(stack[key]))
@@ -70,6 +69,7 @@ def dedynamize(stack):
 
 class DynamoStorage(Storage):
     def __init__(self):
+        super(DynamoStorage, self).__init__()
         self._table = None
         self._settings = DEFAULT_SETTINGS
 
@@ -82,7 +82,7 @@ class DynamoStorage(Storage):
 
         TODO: Accept a configuration object for the table schema.
         """
-        logger.info('Creating dynamodb table {}'.format(self._settings.table_name))
+        self._logger.info('Creating dynamodb table {}'.format(self._settings.table_name))
         conn = boto.connect_dynamodb()
 
         schema = conn.create_schema(
@@ -99,7 +99,7 @@ class DynamoStorage(Storage):
 
         # Could probably use a retry decorator
         while table.status != 'ACTIVE':
-            logger.debug(
+            self._logger.debug(
                 'Waiting for table {} to become active'
                 .format(self._settings.table_name)
             )
@@ -166,7 +166,7 @@ class DynamoStorage(Storage):
             stack = table.get_item(name)
             dedynamize(stack)
         except DynamoDBKeyNotFoundError:
-            logger.warn('Could not find stack {}'.format(name))
+            self._logger.warn('Could not find stack {}'.format(name))
 
         return stack
 
@@ -189,7 +189,7 @@ class DynamoStorage(Storage):
             for key in entry:
                 item[key] = entry[key]
         except DynamoDBKeyNotFoundError:
-            logger.info(
+            self._logger.info(
                 'Stack {} not found. Creating new stack entry.'
                 .format(entry[self._settings.hash_key_name])
             )
@@ -199,7 +199,7 @@ class DynamoStorage(Storage):
             )
 
         if item is not None:
-            logger.debug('Inserting new entry {}'.format(entry[self._settings.hash_key_name]))
+            self._logger.debug('Inserting new entry {}'.format(entry[self._settings.hash_key_name]))
             conn.put_item(item)
 
     def delete(self, name):
@@ -212,4 +212,4 @@ class DynamoStorage(Storage):
             table.delete_item(item)
 
         except DynamoDBKeyNotFoundError:
-            logger.warn('No stack named {} exists to delete.'.format(name))
+            self._logger.warn('No stack named {} exists to delete.'.format(name))

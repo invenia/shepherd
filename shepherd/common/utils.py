@@ -10,8 +10,9 @@ import os
 import re
 import jsonschema
 import anyconfig
+import logging
 
-from shepherd.common.exceptions import ConfigError
+from shepherd.common.exceptions import ConfigError, LoggingException
 
 LOCALREF = 'Fn::LocalRef'
 IMPORTREF = 'Fn::ImportRef'
@@ -102,8 +103,8 @@ def tasks_passed(results, logger, msg=None, exception=None):
 
         if exception:
             logger.error(full_msg)
-            if exception.__name__ == 'StackError':
-                exception(full_msg, name=__name__)
+            if issubclass(type(exception), LoggingException):
+                exception(full_msg, logger)
             else:
                 exception(full_msg)
         else:
@@ -111,3 +112,32 @@ def tasks_passed(results, logger, msg=None, exception=None):
             resp = False
 
     return resp
+
+
+def get_logger(obj):
+    """
+    Provides an alternative method of getting a useful logger name
+    for an object because yapsy tends to mess up how `__name__` works.
+    """
+    return logging.getLogger('{}.{}'.format(
+        type(obj).__module__,
+        type(obj).__name__
+    ))
+
+
+def configure_logging(verbosity):
+    logformat = '[%(levelname)s  %(asctime)s  %(name)s] - "%(message)s"'
+    logging.basicConfig(format=logformat)
+    logging.getLogger().setLevel(logging.WARNING)
+
+    if verbosity == 1:
+        logging.getLogger('shepherd').setLevel(logging.WARNING)
+    elif verbosity == 2:
+        logging.getLogger('shepherd').setLevel(logging.INFO)
+    elif verbosity >= 3:
+        if verbosity == 4:
+            logging.getLogger().setLevel(logging.INFO)
+        elif verbosity >= 5:
+            logging.getLogger().setLevel(logging.DEBUG)
+
+        logging.getLogger('shepherd').setLevel(logging.DEBUG)

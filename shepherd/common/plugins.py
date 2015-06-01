@@ -19,8 +19,6 @@ from yapsy.IPlugin import IPlugin
 from shepherd.common.exceptions import StackError
 from shepherd.common.utils import setattrs, getattrs
 
-logger = logging.getLogger(__name__)
-
 
 class Task(IPlugin):
     """
@@ -79,6 +77,11 @@ class Storage(IPlugin):
     """
     __metaclass__ = ABCMeta
 
+    def __init__(self):
+        self._logger = logging.getLogger(
+            'shepherd.storage.{}'.format(type(self).__name__)
+        )
+
     @abstractmethod
     def search(self, tags):
         """
@@ -125,14 +128,17 @@ class Resource(IPlugin):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, type, provider):
+    def __init__(self, provider):
         self._local_name = None
         self._global_name = None
         self._provider = provider
-        self._type = type
+        self._type = type(self).__name__
         self._stack = None
         self._available = False
         self._tags = {}
+        self._logger = logging.getLogger(
+            'shepherd.resources.{}.{}'.format(provider, self._type)
+        )
         self._attributes_map = {
             'local_name': '_local_name',
             'global_name': '_global_name',
@@ -179,14 +185,14 @@ class Resource(IPlugin):
         self._stack = value
 
     @classmethod
-    def validate_create(cls, logger):
+    def validate_create(cls):
         """
         A default Resource decorator to remove boilerplate validation
         code for create requests.
         """
         def wrap(func):
             def function(self, *args):
-                logger.info(
+                self._logger.info(
                     'Creating {} {} ...'.format(
                         type(self).__name__, self._local_name
                     )
@@ -197,7 +203,7 @@ class Resource(IPlugin):
                         raise StackError(
                             'Unknown parent stack. Make sure that the stack '
                             'property is set prior to calling create',
-                            name=__name__
+                            logger=self._logger
                         )
 
                     passed = func(self, *args)
@@ -206,7 +212,7 @@ class Resource(IPlugin):
                     else:
                         resp = self._available
                 else:
-                    logger.debug(
+                    self._logger.debug(
                         '{} {} is already available'
                         .format(type(self).__name__, self._local_name)
                     )
@@ -216,14 +222,14 @@ class Resource(IPlugin):
         return wrap
 
     @classmethod
-    def validate_destroy(cls, logger):
+    def validate_destroy(cls):
         """
         A default Resource decorator to remove boilerplate validation
         code for destroy requests.
         """
         def wrap(func):
             def function(self, *args):
-                logger.info(
+                self._logger.info(
                     'Destroying {} {} ...'.format(
                         type(self).__name__, self._local_name
                     )
@@ -234,7 +240,7 @@ class Resource(IPlugin):
                         raise StackError(
                             'Unknown parent stack. Make sure that the stack '
                             'property is set prior to calling create',
-                            name=__name__
+                            logger=self._logger
                         )
 
                     passed = func(self, *args)
@@ -243,7 +249,7 @@ class Resource(IPlugin):
                     else:
                         resp = not self._available
                 else:
-                    logger.debug(
+                    self._logger.debug(
                         '{} {} is already unavailable'
                         .format(type(self).__name__, self._local_name)
                     )
@@ -253,10 +259,14 @@ class Resource(IPlugin):
 
     def deserialize(self, data):
         setattrs(self, self._attributes_map, data)
-        logger.debug('Deserialized {} {}'.format(type(self).__name__, self._local_name))
+        self._logger.debug(
+            'Deserialized {} {}'.format(type(self).__name__, self._local_name)
+        )
 
     def serialize(self):
-        logger.debug('Serializing {} {}'.format(type(self).__name__, self._local_name))
+        self._logger.debug(
+            'Serializing {} {}'.format(type(self).__name__, self._local_name)
+        )
         return getattrs(self, self._attributes_map)
 
     @abstractmethod

@@ -1,38 +1,35 @@
-import logging
-
 
 class LoggingException(Exception):
 
-    def __init__(self, message, name, log=True):
+    def __init__(self, message, logger):
         Exception.__init__(self, message)
-        if log:
-            logger = logging.getLogger(name)
+        if logger:
             logger.error(message)
 
 
 class ConfigError(LoggingException):
 
-    def __init__(self, message, error=None, name=__name__):
-        LoggingException.__init__(self, message, name)
+    def __init__(self, message, error=None, logger=None):
+        LoggingException.__init__(self, message, logger)
         self.error = error
 
 
 class ManifestError(LoggingException):
 
-    def __init__(self, message, errors=None, name=__name__):
-        LoggingException.__init__(self, message, name)
+    def __init__(self, message, errors=None, logger=None):
+        LoggingException.__init__(self, message, logger)
         self.errors = errors
 
 
 class StackError(LoggingException):
 
-    def __init__(self, message, errors=None, name=__name__, log=True):
-        LoggingException.__init__(self, message, name, log=log)
+    def __init__(self, message, errors=None, logger=None):
+        LoggingException.__init__(self, message, logger)
         self.errors = errors
 
 
 class PluginError(LoggingException):
 
-    def __init__(self, message, errors=None, name=__name__):
-        LoggingException.__init__(self, message, name)
+    def __init__(self, message, errors=None, logger=None):
+        LoggingException.__init__(self, message, logger)
         self.errors = errors

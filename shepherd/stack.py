@@ -119,7 +119,7 @@ class Stack(object):
                 raise StackError(
                     'Could not find stack {} in store {}'
                     .format(name, store_name),
-                    name=__name__
+                    logger=logger
                 )
 
             stack = Stack.deserialize(serialized)

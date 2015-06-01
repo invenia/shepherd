@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import boto
-import logging
 
 from arbiter import create_task
 from arbiter.sync import run_tasks
@@ -13,12 +12,11 @@ from shepherd.common.utils import pascal_to_underscore, tasks_passed
 from shepherd.resources.aws import get_volume
 
 DEFAULT_VOL_SIZE = 128
-logger = logging.getLogger(__name__)
 
 
 class Volume(Resource):
     def __init__(self):
-        super(Volume, self).__init__('Volume', 'aws')
+        super(Volume, self).__init__('aws')
         self._snapshot_id = None
         self._volume_id = None
         self._availability_zone = None
@@ -51,13 +49,13 @@ class Volume(Resource):
 
     def get_dependencies(self):
         deps = []
-        logger.debug(
+        self._logger.debug(
             'Generating a dependency list for Volume creation: []'
         )
 
         return deps
 
-    @Resource.validate_create(logging)
+    @Resource.validate_create()
     def create(self):
         tasks = (
             create_task('check_snapshot', self._check_snapshot),
@@ -71,11 +69,11 @@ class Volume(Resource):
         )
         results = run_tasks(tasks)
         return tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to provision volume {}'.format(self._local_name)
         )
 
-    @Resource.validate_destroy(logging)
+    @Resource.validate_destroy()
     def destroy(self):
         if self._volume_id and get_volume(self._volume_id):
             conn = boto.connect_ec2()
@@ -85,10 +83,10 @@ class Volume(Resource):
                 StackError(
                     'Failed to destroy Volume {}. ID={}\n'
                     .format(self._local_name, self._volume_id),
-                    name=__name__
+                    logger=self._logger
                 )
         else:
-            logger.debug(
+            self._logger.debug(
                 "Volume {} does not exist or cannot be found."
                 .format(self._local_name)
             )
@@ -99,7 +97,7 @@ class Volume(Resource):
     def _create_volume(self):
         conn = boto.connect_ec2()
         if not self._volume_id:
-            logger.debug('Creating volume {}'.format(self._local_name))
+            self._logger.debug('Creating volume {}'.format(self._local_name))
             volume = conn.create_volume(
                 size=self._size,
                 zone=self._availability_zone,
@@ -111,11 +109,11 @@ class Volume(Resource):
 
             if volume:
                 self._volume_id = volume.id
-                logger.debug("Volume {} created".format(self._volume_id))
+                self._logger.debug("Volume {} created".format(self._volume_id))
             else:
                 raise StackError(
                     "Failed to create Volume {}".format(self._local_name),
-                    name=__name__
+                    logger=self._logger
                 )
 
         return True
@@ -139,7 +137,7 @@ class Volume(Resource):
                 raise StackError(
                     'Could not find snapshot matching snapshot {}'
                     .format(self._snapshot_id),
-                    name=__name__
+                    logger=self._logger
                 )
 
         return True
@@ -147,7 +145,7 @@ class Volume(Resource):
     def _check_created(self):
         volume = get_volume(self._volume_id)
         if volume:
-            logger.debug('Volume status = {}'.format(volume.status))
+            self._logger.debug('Volume status = {}'.format(volume.status))
 
             if volume.status == 'available':
                 self._available = True

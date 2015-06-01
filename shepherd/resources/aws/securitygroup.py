@@ -5,7 +5,6 @@ Handles creation and destruction of security groups
 """
 from __future__ import print_function
 
-import logging
 import boto
 
 from arbiter import create_task
@@ -16,12 +15,10 @@ from shepherd.common.exceptions import StackError
 from shepherd.common.utils import tasks_passed
 from shepherd.resources.aws import get_security_group
 
-logger = logging.getLogger(__name__)
-
 
 class SecurityGroup(Resource):
     def __init__(self):
-        super(SecurityGroup, self).__init__('SecurityGroup', 'aws')
+        super(SecurityGroup, self).__init__('aws')
         self._group_id = None
         self._group_description = None
 
@@ -32,13 +29,13 @@ class SecurityGroup(Resource):
 
     def get_dependencies(self):
         deps = []
-        logger.debug(
+        self._logger.debug(
             'Generating a dependency list for EC2 Security Group creation: []'
         )
 
         return deps
 
-    @Resource.validate_create(logger)
+    @Resource.validate_create()
     def create(self):
         tasks = (
             create_task('create', self._create_group),
@@ -51,13 +48,14 @@ class SecurityGroup(Resource):
         results = run_tasks(tasks)
 
         return tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to provision security group {}'.format(self._local_name)
         )
 
-    @Resource.validate_destroy(logger)
+    @Resource.validate_destroy()
     def destroy(self):
         conn = boto.connect_ec2()
+        logger = self._logger
         if self._group_id is not None and get_security_group(group_id=self._group_id):
             resp = conn.delete_security_group(group_id=self._group_id)
 
@@ -84,7 +82,7 @@ class SecurityGroup(Resource):
         """ Handles the creation request """
         conn = boto.connect_ec2()
         if self._group_id is None:
-            logger.debug(
+            self._logger.debug(
                 'Requesting EC2 Security Group {}...'
                 .format(self._global_name)
             )
@@ -104,7 +102,7 @@ class SecurityGroup(Resource):
     def _check_created(self):
         """ Checks that group is available """
         if get_security_group(group_id=self._group_id):
-            logger.info(
+            self._logger.info(
                 'EC2 Security Group {} is now available.'
                 .format(self._local_name)
             )

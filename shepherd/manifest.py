@@ -164,7 +164,7 @@ class Manifest(object):
         if 'vars' not in self._template:
             raise ManifestError(
                 'Parameters not in template dict',
-                name=__name__
+                logger=logger
             )
 
         self._vars = self._template['vars']
@@ -187,7 +187,7 @@ class Manifest(object):
             if val is None:
                 raise ManifestError(
                     'Some parameters still equal None after parsing.',
-                    name=__name__
+                    logger=logger
                 )
 
         # self.export_cfn()
@@ -202,7 +202,7 @@ class Manifest(object):
         if 'resources' not in self._template:
             raise ManifestError(
                 'Resources not in template dict',
-                name=__name__
+                logger=logger
             )
 
         jinja_template = Template(json.dumps(dict(self._template['resources'])))
