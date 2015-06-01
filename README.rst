@@ -1,21 +1,24 @@
-=======
+.. _README:
 Shepherd
-=======
+==================================
 |build| |coverage| |grade| |docs|
 
 Shepherd is a pluggable resource provisioning framework, similar to Amazon's
 cloudformation but faster, more flexibility and cloud provider independent.
 
+.. _installation:
 Installation
-============
+--------------
 
 Shepherd is not available on PyPI. To install::
 
     $ pip install git+https://github.com/invenia/Shepherd.git#egg=Shepherd
 
+Since, the primary cloud provider supported is AWS please create your `security credentials <http://docs.aws.amazon.com/general/latest/gr/getting-aws-sec-creds.html>`_ and `configure <http://boto.readthedocs.org/en/latest/getting_started.html#configuring-boto-credentials>`_ your local machine to use them, if you haven't already done so.
+
 
 Features
-==========
+---------
 Shepherd supports multiple useful features for managing resources.
 
 - Stacks: provision, deprovision, tag and audit groups of resources (called stacks)
@@ -25,7 +28,7 @@ Shepherd supports multiple useful features for managing resources.
 
 
 Usage
-=====
+--------
 
 To provision and deprovision a stack::
 
@@ -64,7 +67,7 @@ To provision and deprovision a stack::
 
 
 License
-=======
+-----------
 Shepherd is provided under an MPL License.
 
 .. |build| image:: https://img.shields.io/travis/invenia/shepherd.svg?branch=master

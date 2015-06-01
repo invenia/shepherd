@@ -46,7 +46,7 @@ _BUILTIN_PATHS = [
     join(_PACKAGE_PATH, 'storage'),
 ]
 _DEFAULT_SETTINGS = AttrDict({
-    'template_path': '',
+    'manifest_path': '',
     'debug': True,
     'retries': 120,
     'delay': 5,
