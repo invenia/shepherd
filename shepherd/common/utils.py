@@ -11,7 +11,7 @@ import re
 import jsonschema
 import anyconfig
 
-from shepherd.common.exceptions import ConfigValidationError
+from shepherd.common.exceptions import ConfigError
 
 LOCALREF = 'Fn::LocalRef'
 IMPORTREF = 'Fn::ImportRef'
@@ -33,7 +33,7 @@ def validate_config(config):
 
         jsonschema.validate(config, schema)
     except jsonschema.ValidationError as exc:
-        ConfigValidationError(exc.message)
+        ConfigError(exc.message)
 
 
 def setattrs(obj, attrmap, values):

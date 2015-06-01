@@ -10,21 +10,14 @@ class LoggingException(Exception):
             logger.error(message)
 
 
-class ConfigValidationError(LoggingException):
+class ConfigError(LoggingException):
 
     def __init__(self, message, error=None, name=__name__):
         LoggingException.__init__(self, message, name)
         self.error = error
 
 
-class ManifestParsingError(LoggingException):
-
-    def __init__(self, message, errors=None, name=__name__):
-        LoggingException.__init__(self, message, name)
-        self.errors = errors
-
-
-class ManifestValidationError(LoggingException):
+class ManifestError(LoggingException):
 
     def __init__(self, message, errors=None, name=__name__):
         LoggingException.__init__(self, message, name)

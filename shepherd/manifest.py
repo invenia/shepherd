@@ -12,7 +12,7 @@ from within.shell import working_directory
 from jinja2 import Template, StrictUndefined
 
 from shepherd.config import Config
-from shepherd.common.exceptions import ManifestParsingError
+from shepherd.common.exceptions import ManifestError
 
 INCLUDE_KEY = 'include'
 INCLUDE_ERROR_MSG = (
@@ -162,7 +162,7 @@ class Manifest(object):
 
         # Simplify the Parameters dict to just key : values
         if 'vars' not in self._template:
-            raise ManifestParsingError(
+            raise ManifestError(
                 'Parameters not in template dict',
                 name=__name__
             )
@@ -185,7 +185,7 @@ class Manifest(object):
         # Validate that we don't have any None values in the Parameters dict.
         for key, val in self._vars.items():
             if val is None:
-                raise ManifestParsingError(
+                raise ManifestError(
                     'Some parameters still equal None after parsing.',
                     name=__name__
                 )
@@ -200,7 +200,7 @@ class Manifest(object):
         logger.debug('Mapping Parameters into and simplifying resources list')
 
         if 'resources' not in self._template:
-            raise ManifestParsingError(
+            raise ManifestError(
                 'Resources not in template dict',
                 name=__name__
             )
