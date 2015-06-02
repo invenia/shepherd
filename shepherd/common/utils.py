@@ -12,10 +12,27 @@ import jsonschema
 import anyconfig
 import logging
 
-from shepherd.common.exceptions import ConfigError, LoggingException
+from shepherd.common.exceptions import ConfigError, LoggingException, PluginError
 
 LOCALREF = 'Fn::LocalRef'
 IMPORTREF = 'Fn::ImportRef'
+
+
+def run(self, action_name, config, **kwargs):
+    """
+    Searches for the action plugin to run.
+    Searches both the default paths as well as
+
+    :param task: the name of the task you want to run.
+    :param kwargs: a dictionary of parameters to be passed to the task.
+    """
+    actions = config.get_plugins(category_name='Action', plugin_name=action_name)
+
+    if actions:
+        action = actions[0]
+        action.run(config, **kwargs)
+    else:
+        raise PluginError('Failed to locate task {}'.format(action_name))
 
 
 def pascal_to_underscore(pascal_str):

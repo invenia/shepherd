@@ -20,20 +20,23 @@ from shepherd.common.exceptions import StackError
 from shepherd.common.utils import setattrs, getattrs
 
 
-class Task(IPlugin):
+class Action(IPlugin):
     """
-    Defines a task to run.
+    Defines an action to run.
+
+    WARNING: Actions may be depricated as objects in future versions
+        if yapsy is removed as the plugin manager.
     """
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def run(self, **kwargs):
+    def run(self, config, **kwargs):
         """
         Takes an undefined set of name arguments.
         """
         raise NotImplementedError(
             'The abstractmethod "run" was not '
-            'implemented in the Task abstract base class'
+            'implemented in the Action abstract base class'
         )
 
 

@@ -27,7 +27,7 @@ from attrdict import AttrDict
 
 # from shepherd.common.exceptions import PluginError
 from shepherd.common.plugins import Resource
-from shepherd.common.plugins import Task
+from shepherd.common.plugins import Action
 from shepherd.common.plugins import Storage
 from shepherd.common.plugins import Parser
 from shepherd.common.plugins import is_plugin
@@ -41,7 +41,7 @@ else:
 _PACKAGE_PATH = dirname(abspath(__file__))
 _BUILTIN_PATHS = [
     join(_PACKAGE_PATH, 'resources'),
-    join(_PACKAGE_PATH, 'tasks'),
+    join(_PACKAGE_PATH, 'actions'),
     join(_PACKAGE_PATH, 'storage'),
 ]
 _DEFAULT_SETTINGS = AttrDict({
@@ -64,10 +64,14 @@ class Config(object):
     The :class:`Config <Config>` is responsible for managing the
     plugins and executing given tasks.
     """
-    _configs = {}
+    _configs = []
     logging_verbosity = 0
 
-    def __init__(self, settings):
+    def __init__(self, settings, name):
+        assert settings is not None
+        assert name is not None
+
+        self._name = name
         self._settings = settings
         self._inspect_analyzer = None
         self._default_analyzer = None
@@ -76,13 +80,13 @@ class Config(object):
         self._plugins = None
         self._stacks = []
 
-        validate_config(self.settings)
-        if Config.logging_verbosity < self.settings.verbosity:
-            configure_logging(self.settings.verbosity)
-            Config.logging_verbosity = self.settings.verbosity
+        validate_config(settings)
+        if Config.logging_verbosity < settings['verbosity']:
+            configure_logging(settings['verbosity'])
+            Config.logging_verbosity = settings['verbosity']
             logger.info(
                 'Increased logging verbosity from {} to {} with the new config...'
-                .format(Config.logging_verbosity, self.settings.verbosity)
+                .format(Config.logging_verbosity, settings['verbosity'])
             )
 
         self._configure_plugins()
@@ -120,7 +124,7 @@ class Config(object):
         # Create the categories filter dict
         self._categories = {
             "Resource": Resource,
-            "Task": Task,
+            "Action": Action,
             "Storage": Storage,
             "Parser": Parser,
         }
@@ -140,6 +144,10 @@ class Config(object):
         self._plugins.collectPlugins()
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def settings(self):
         return self._settings
 
@@ -154,30 +162,23 @@ class Config(object):
         logger.debug('Creating Config named "{}"'.format(name))
         config_settings = _DEFAULT_SETTINGS
         if settings:
-            config_settings = config_settings + settings
+            config_settings.update(settings)
 
-        if name not in cls._configs:
-            logger.info('Creating Config...')
-            cls._configs[name] = Config(config_settings)
+        assert config_settings is not None
+        new_config = Config(config_settings, name)
+        for index, config in enumerate(cls._configs):
+            if config.name == name:
+                logger.warn('Recreating Config named {}'.format(name))
+                cls._configs[index] = new_config
+        else:
+            cls._configs.append(new_config)
 
-        return cls._configs[name]
+        return new_config
 
     @classmethod
     def make_from_file(cls, filename, name=""):
-        config_settings = _DEFAULT_SETTINGS
-
-        if name in cls._configs:
-            logger.warn('Recreating Config object from settings loaded in file')
-        else:
-            logger.debug('Creating Config from file...')
-
         settings = anyconfig.load(filename, safe=True)
-        if settings:
-            config_settings.update(settings)
-
-        cls._configs[name] = Config(config_settings)
-
-        return cls._configs[name]
+        return cls.make(settings=settings, name=name)
 
     @classmethod
     def get(cls, name=""):
@@ -186,27 +187,11 @@ class Config(object):
         """
         logger.debug('Retrieving Config named "{}"'.format(name))
 
-        if name in cls._configs:
-            return cls._configs[name]
+        for config in cls._configs:
+            if config.name == name:
+                return config
         else:
             raise KeyError('No config with the name {} exists'.format(name))
-
-    # Unclear whether to keep this
-    # def run(self, task, **kwargs):
-    #     """
-    #     Searches for the task to apply to the stack.
-    #     Searches both the default paths as well as
-
-    #     :param task: the name of the task you want to run.
-    #     :param kwargs: a dictionary of parameters to be passed to the task.
-    #     """
-    #     tasks = self.get_plugins(category_name='Task', plugin_name=task)
-
-    #     if tasks:
-    #         task = tasks[0]
-    #         task.run(**kwargs)
-    #     else:
-    #         raise PluginError('Failed to locate task {}'.format(task))
 
     def get_plugins(self, category_name=None, plugin_name=None):
         """

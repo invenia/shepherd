@@ -25,12 +25,12 @@ class Stack(object):
     The Stack object maintains and manipulates the list of cloud
     resources that need to be provisioned.
     """
-    def __init__(self, name, config_name):
+    def __init__(self, name, config):
         self._name_fmt = _DEFAULT_NAME_FMT
         self._local_name = name
         self._global_name = None
-        self._config = Config.get(config_name)
-        self._config_name = config_name
+        self._config = config
+        self._config_name = config.name
         self._settings = self._config.settings
         self._resources = []
         self._tags = {
@@ -71,19 +71,19 @@ class Stack(object):
         return self._tags
 
     @classmethod
-    def make(cls, name, config_name=""):
+    def make(cls, name, config):
         """
         Handles creating a stack instance.
         """
         # Build the Manifest which handles the
         # parsing, loading, etc of the template files.
-        manifest = Manifest(config_name)
+        manifest = Manifest(config)
         manifest.load()
         manifest.parse()
         manifest.map()
 
         # Create our new Stack object.
-        stack = Stack(name, config_name)
+        stack = Stack(name, config)
 
         # Finally, we call the stacks deserialize method
         # giving it just the finished resources dict from
@@ -95,14 +95,12 @@ class Stack(object):
         return stack
 
     @classmethod
-    def restore(cls, name, config_name=""):
+    def restore(cls, name, config):
         """
         Handles restoring a stack with the given name
         from the storage plugin specified in
         config.settings
         """
-        config = Config.get(config_name)
-
         logger.debug('Stack.restore: Storage setting={}'.format(config.settings.storage))
         store_name = config.settings.storage.name
         # Get storage plugin
@@ -153,8 +151,8 @@ class Stack(object):
 
     @classmethod
     def deserialize(cls, data):
-        Config.make(settings=data['settings'], name=data['config_name'])
-        stack = Stack(data['local_name'], data['config_name'])
+        config = Config.make(settings=data['settings'], name=data['config_name'])
+        stack = Stack(data['local_name'], config)
         stack._global_name = data['global_name']
         stack._tags = data['tags']
         stack.deserialize_resources(data['resources'])

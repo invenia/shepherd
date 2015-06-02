@@ -11,7 +11,6 @@ from shutil import rmtree
 from within.shell import working_directory
 from jinja2 import Template, StrictUndefined
 
-from shepherd.config import Config
 from shepherd.common.exceptions import ManifestError
 
 INCLUDE_KEY = 'include'
@@ -108,14 +107,14 @@ class Manifest(object):
     'StackDashboardSecurityGroup' remain.  Also, how the the name has been
     moved inside the dict and the properties have been moved up a level.
     """
-    def __init__(self, config_name):
+    def __init__(self, config):
         """
         From the provided paths the specs are loaded and parsed.
 
         NOTE: I'm purposefully not removing the tmp directory on errors,
         because we may want to look at its contents if something fails
         """
-        self._config = Config.get(name=config_name)
+        self._config = config
         self._template = {}
         self._vars = {}
         self._resources = []

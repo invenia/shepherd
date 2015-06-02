@@ -84,24 +84,24 @@ class TestStack(TestCase):
         )
 
     def test_init(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
     def test_serialize(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
         mydict = self.stack.serialize()
         self.assertTrue(isinstance(mydict, dict))
 
     def test_deserialize(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
         mydict = self.stack.serialize()
         self.assertTrue(isinstance(mydict, dict))
         self.stack.deserialize(mydict)
 
     def test_get_global_resource_name(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
         global_name = self.stack.get_global_resource_name('TestKey')
@@ -109,7 +109,7 @@ class TestStack(TestCase):
         self.assertTrue(global_name.startswith('TestKey'))
 
     def test_get_resource_by_name(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
         key = self.stack.get_resource_by_name('TestKey')
@@ -119,7 +119,7 @@ class TestStack(TestCase):
         self.assertIsNone(foo)
 
     def test_get_resource_by_type(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
         keys = self.stack.get_resource_by_type('AccessKey')
@@ -132,7 +132,7 @@ class TestStack(TestCase):
         self.assertEquals(len(bars), 0)
 
     def test_get_resource_by_tags(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
         resources = self.stack.get_resource_by_tags(
@@ -154,7 +154,7 @@ class TestStack(TestCase):
     @mock_ec2()
     @mock_dynamodb()
     def test_provision_resources(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
         self.stack.provision_resources()
@@ -163,7 +163,7 @@ class TestStack(TestCase):
     @mock_ec2()
     @mock_dynamodb
     def test_deprovision_resources(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
 
         self.stack.provision_resources()
@@ -173,7 +173,7 @@ class TestStack(TestCase):
     @mock_ec2()
     @mock_dynamodb()
     def test_save(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
         self.stack.save()
 
@@ -195,14 +195,14 @@ class TestStack(TestCase):
     @mock_ec2()
     @mock_dynamodb()
     def test_restore(self):
-        self.stack = Stack('test_stack', 'test_config')
+        self.stack = Stack('test_stack', self.config)
         self.stack.deserialize_resources(self.resources)
         self.stack.save()
-        Stack.restore(self.stack.global_name, 'test_config')
+        Stack.restore(self.stack.global_name, self.config)
 
         with self.assertRaises(PluginError):
             self.stack._config._settings['storage']['name'] = 'Foo'
-            Stack.restore('test_stack', 'test_config')
+            Stack.restore('test_stack', self.config)
 
         self.stack._config._settings['storage']['name'] = 'DynamoStorage'
 
@@ -226,6 +226,6 @@ class TestStack(TestCase):
             config.settings.retries = 0
             config.settings.delay = 0
 
-            stack = Stack.make('TestStack', config_name=MANIFEST_PATH)
+            stack = Stack.make('TestStack', config)
             stack.provision_resources()
             stack.deprovision_resources()
