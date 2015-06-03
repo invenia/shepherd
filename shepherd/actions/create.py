@@ -12,3 +12,5 @@ class CreateStack(Action):
         stack = Stack.make(kwargs['name'], config)
         stack.provision_resources()
         stack.save()
+
+        return stack.global_name

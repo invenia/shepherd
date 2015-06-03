@@ -18,7 +18,7 @@ LOCALREF = 'Fn::LocalRef'
 IMPORTREF = 'Fn::ImportRef'
 
 
-def run(self, action_name, config, **kwargs):
+def run(action_name, config, **kwargs):
     """
     Searches for the action plugin to run.
     Searches both the default paths as well as
@@ -30,7 +30,7 @@ def run(self, action_name, config, **kwargs):
 
     if actions:
         action = actions[0]
-        action.run(config, **kwargs)
+        return action.run(config, **kwargs)
     else:
         raise PluginError('Failed to locate task {}'.format(action_name))
 

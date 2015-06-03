@@ -12,3 +12,5 @@ class DestroyStack(Action):
         stack = Stack.restore(kwargs['name'], config)
         stack.deprovision_resources()
         stack.save()
+
+        return stack.global_name
