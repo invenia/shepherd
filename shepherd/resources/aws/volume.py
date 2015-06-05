@@ -87,8 +87,8 @@ class Volume(Resource):
                 )
         else:
             self._logger.debug(
-                "Volume {} does not exist or cannot be found."
-                .format(self._local_name)
+                "Volume %s does not exist or cannot be found.",
+                self._local_name
             )
 
         self._volume_id = None
@@ -97,7 +97,7 @@ class Volume(Resource):
     def _create_volume(self):
         conn = boto.connect_ec2()
         if not self._volume_id:
-            self._logger.debug('Creating volume {}'.format(self._local_name))
+            self._logger.debug('Creating volume %s', self._local_name)
             volume = conn.create_volume(
                 size=self._size,
                 zone=self._availability_zone,
@@ -109,7 +109,7 @@ class Volume(Resource):
 
             if volume:
                 self._volume_id = volume.id
-                self._logger.debug("Volume {} created".format(self._volume_id))
+                self._logger.debug("Volume %s created", self._volume_id)
             else:
                 raise StackError(
                     "Failed to create Volume {}".format(self._local_name),
@@ -145,7 +145,7 @@ class Volume(Resource):
     def _check_created(self):
         volume = get_volume(self._volume_id)
         if volume:
-            self._logger.debug('Volume status = {}'.format(volume.status))
+            self._logger.debug('Volume status = %s', volume.status)
 
             if volume.status == 'available':
                 self._available = True

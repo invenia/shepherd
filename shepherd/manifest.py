@@ -123,7 +123,8 @@ class Manifest(object):
 
         self._working_dir = mkdtemp(prefix=__name__)
         logger.debug(
-            'Storing manifest temp files in {}.'.format(self._working_dir)
+            'Storing manifest temp files in %s.',
+            self._working_dir
         )
         self._loader = Loader(self._filename, self._working_dir)
 
@@ -138,7 +139,7 @@ class Manifest(object):
         is specified, which simply reads either the json or yaml files
         with the name params or resources.
         """
-        logger.debug('Loading {}'.format(self._filename))
+        logger.debug('Loading %s', self._filename)
 
         try:
             self._template = self._loader.run()
@@ -148,7 +149,7 @@ class Manifest(object):
 
         # Write result to file nicely so we can inspect the results later.
         outfile = os.path.join(self._working_dir, "loaded.json")
-        logger.debug('Writing loaded template to {}'.format(outfile))
+        logger.debug('Writing loaded template to %s', outfile)
         with open(outfile, 'w+') as fobj:
             fobj.write(json.dumps(dict(self._template), indent=1, sort_keys=True))
 
@@ -177,12 +178,12 @@ class Manifest(object):
             self._vars = parser.run(self._vars)
 
         outfile = os.path.join(self._working_dir, "parsed.json")
-        logger.debug('Writing parsed vars to {}'.format(outfile))
+        logger.debug('Writing parsed vars to %s', outfile)
         with open(outfile, 'w+') as fobj:
             fobj.write(json.dumps(dict(self._vars), indent=1, sort_keys=True))
 
         # Validate that we don't have any None values in the Parameters dict.
-        for key, val in self._vars.items():
+        for val in self._vars.values():
             if val is None:
                 raise ManifestError(
                     'Some parameters still equal None after parsing.',
@@ -219,7 +220,7 @@ class Manifest(object):
 
     def clear(self):
         if "debug" in self._settings and not self._settings["debug"]:
-            logger.info('Removing {}'.format(self._working_dir))
+            logger.info('Removing %s', self._working_dir)
             rmtree(self._working_dir)
 
 

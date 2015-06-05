@@ -61,8 +61,8 @@ class SecurityGroup(Resource):
 
             if resp:
                 logger.info(
-                    'EC2 Security Group {} successfully destroyed'
-                    .format(self._local_name)
+                    'EC2 Security Group %s successfully destroyed',
+                    self._local_name
                 )
                 self._group_id = None
                 self._available = False
@@ -75,7 +75,7 @@ class SecurityGroup(Resource):
         else:
             logger.warn(
                 'Group does not exist anymore. Setting EC2 Security '
-                'Group {} to unavailable'.format(self._local_name)
+                'Group %s to unavailable', self._local_name
             )
 
     def _create_group(self):
@@ -83,8 +83,8 @@ class SecurityGroup(Resource):
         conn = boto.connect_ec2()
         if self._group_id is None:
             self._logger.debug(
-                'Requesting EC2 Security Group {}...'
-                .format(self._global_name)
+                'Requesting EC2 Security Group %s...',
+                self._global_name
             )
 
             self._global_name = self.stack.get_global_resource_name(
@@ -103,8 +103,8 @@ class SecurityGroup(Resource):
         """ Checks that group is available """
         if get_security_group(group_id=self._group_id):
             self._logger.info(
-                'EC2 Security Group {} is now available.'
-                .format(self._local_name)
+                'EC2 Security Group %s is now available.',
+                self._local_name
             )
             self._available = True
 

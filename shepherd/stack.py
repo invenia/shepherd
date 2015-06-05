@@ -56,7 +56,7 @@ class Stack(object):
         )
 
     def __str__(self):
-        return self.name
+        return self._local_name
 
     @property
     def global_name(self):
@@ -101,7 +101,7 @@ class Stack(object):
         from the storage plugin specified in
         config.settings
         """
-        logger.debug('Stack.restore: Storage setting={}'.format(config.settings.storage))
+        logger.debug('Stack.restore: Storage setting=%s', config.settings.storage)
         store_name = config.settings.storage.name
         # Get storage plugin
         stores = config.get_plugins(
@@ -133,7 +133,7 @@ class Stack(object):
         Saves this stack to the storage plugin specified
         in config.settings.
         """
-        logger.debug('Stack.save: Storage settings={}'.format(self._config.settings.storage))
+        logger.debug('Stack.save: Storage settings=%s', self._config.settings.storage)
         store_name = self._config.settings.storage.name
         # Get the storage plugin
         stores = self._config.get_plugins(
@@ -190,7 +190,7 @@ class Stack(object):
         """
         for resource in self._resources:
             if resource.local_name == local_name:
-                    return resource
+                return resource
         else:
             return None
 
@@ -201,7 +201,7 @@ class Stack(object):
         determined by either the name of the resources class or by the resource
         type attribute if one exists.
         """
-        logger.info('Looking up resources of type {}'.format(resource_type))
+        logger.info('Looking up resources of type %s', resource_type)
         resources = []
         for resource in self._resources:
             if type(resource).__name__ == resource_type:
@@ -217,7 +217,7 @@ class Stack(object):
         Returns a list of resources where the resource tags contains the same
         key values as the tags provided.
         """
-        logger.info('Looking up resources with tags {}'.format(str(tags)))
+        logger.info('Looking up resources with tags %s', str(tags))
         return [
             resource for resource in self._resources if dict_contains(
                 resource.tags, tags
@@ -255,13 +255,12 @@ class Stack(object):
         tasks = []
         for resource in resources:
             logger.info(
-                'Stack.provision_resources - {} marked for creation'.format(
-                    resource.local_name
-                )
+                'Stack.provision_resources - %s marked for creation',
+                resource.local_name
             )
             logger.debug(
-                'Stack.provision_resources - Dependencies: {}'
-                .format(resource.get_dependencies())
+                'Stack.provision_resources - Dependencies: %s',
+                resource.get_dependencies()
             )
 
             tasks.append(
@@ -313,13 +312,12 @@ class Stack(object):
         tasks = []
         for resource in resources:
             logger.info(
-                'Stack.deprovision_resources - {} marked for deletion'.format(
-                    resource.local_name
-                )
+                'Stack.deprovision_resources - %s marked for deletion',
+                resource.local_name
             )
             logger.debug(
-                'Stack.deprovision_resources - Dependencies: {}'
-                .format(inverse_dependencies[resource.local_name])
+                'Stack.deprovision_resources - Dependencies: %s',
+                inverse_dependencies[resource.local_name]
             )
 
             tasks.append(

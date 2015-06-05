@@ -43,7 +43,7 @@ class SecurityGroupIngress(Resource):
 
         self._logger.debug(
             'Generating a dependency list for EC2 Security Group Ingress '
-            'creation: {}'.format(', '.join((dep.local_name for dep in deps)))
+            'creation: %s', ', '.join((dep.local_name for dep in deps))
         )
 
         return deps

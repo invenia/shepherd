@@ -48,8 +48,8 @@ class AccessKey(Resource):
             deps.append(user)
 
         self._logger.debug(
-            'Generating a dependency list for IAM key creation: {}'
-            .format(', '.join((dep.local_name for dep in deps)))
+            'Generating a dependency list for IAM key creation: %s',
+            ', '.join((dep.local_name for dep in deps))
         )
 
         return deps
@@ -94,8 +94,8 @@ class AccessKey(Resource):
         """ Handles the creation request """
         if self._access_key_id is None:
             self._logger.debug(
-                'Requesting IAM Access Key for user {}...'
-                .format(self._user_name)
+                'Requesting IAM Access Key for user %s...',
+                self._user_name
             )
 
             # Set our global_name which will be the same as the iamuser
@@ -114,8 +114,8 @@ class AccessKey(Resource):
     def _delete_key(self):
         """ Handles the deletion request """
         self._logger.debug(
-            'Requesting deletion of IAM Access Key ({})...'
-            .format(self._access_key_id)
+            'Requesting deletion of IAM Access Key (%s)...',
+            self._access_key_id
         )
         conn = boto.connect_iam()
 
@@ -130,8 +130,7 @@ class AccessKey(Resource):
         """ Performs a check that the access key is available """
         if get_access_key(self._global_name, self._access_key_id):
             self._logger.debug(
-                'AccessKey {} is now available.'
-                .format(self._local_name)
+                'AccessKey %s is now available.', self._local_name
             )
             self._available = True
 
@@ -140,7 +139,7 @@ class AccessKey(Resource):
     def _check_deleted(self):
         """ Performs a check to ensure that the key was successfully deleted """
         if not get_access_key(self._global_name, self._access_key_id):
-            self._logger.debug('AccessKey {} deleted'.format(self._local_name))
+            self._logger.debug('AccessKey %s deleted', self._local_name)
             self._access_key_id = None
             self._available = False
 

@@ -196,9 +196,7 @@ class Resource(IPlugin):
         def wrap(func):
             def function(self, *args):
                 self._logger.info(
-                    'Creating {} {} ...'.format(
-                        type(self).__name__, self._local_name
-                    )
+                    'Creating %s %s ...', type(self).__name__, self._local_name
                 )
                 resp = True
                 if not self._available:
@@ -216,8 +214,7 @@ class Resource(IPlugin):
                         resp = self._available
                 else:
                     self._logger.debug(
-                        '{} {} is already available'
-                        .format(type(self).__name__, self._local_name)
+                        '%s %s is already available', type(self).__name__, self._local_name
                     )
 
                 return resp
@@ -233,9 +230,7 @@ class Resource(IPlugin):
         def wrap(func):
             def function(self, *args):
                 self._logger.info(
-                    'Destroying {} {} ...'.format(
-                        type(self).__name__, self._local_name
-                    )
+                    'Destroying %s %s ...', type(self).__name__, self._local_name
                 )
                 resp = True
                 if self._available:
@@ -253,8 +248,7 @@ class Resource(IPlugin):
                         resp = not self._available
                 else:
                     self._logger.debug(
-                        '{} {} is already unavailable'
-                        .format(type(self).__name__, self._local_name)
+                        '%s %s is already unavailable', type(self).__name__, self._local_name
                     )
                 return resp
             return function
@@ -263,12 +257,12 @@ class Resource(IPlugin):
     def deserialize(self, data):
         setattrs(self, self._attributes_map, data)
         self._logger.debug(
-            'Deserialized {} {}'.format(type(self).__name__, self._local_name)
+            'Deserialized %s %s', type(self).__name__, self._local_name
         )
 
     def serialize(self):
         self._logger.debug(
-            'Serializing {} {}'.format(type(self).__name__, self._local_name)
+            'Serializing %s %s', type(self).__name__, self._local_name
         )
         return getattrs(self, self._attributes_map)
 

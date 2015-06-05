@@ -85,8 +85,9 @@ class Config(object):
             configure_logging(settings['verbosity'])
             Config.logging_verbosity = settings['verbosity']
             logger.info(
-                'Increased logging verbosity from {} to {} with the new config...'
-                .format(Config.logging_verbosity, settings['verbosity'])
+                'Increased logging verbosity from %s to %s with the new config...',
+                Config.logging_verbosity,
+                settings['verbosity']
             )
 
         self._configure_plugins()
@@ -159,7 +160,7 @@ class Config(object):
 
         :param settings: (optional) a settings describing which plugins to load etc.
         """
-        logger.debug('Creating Config named "{}"'.format(name))
+        logger.debug('Creating Config named "%s"', name)
         config_settings = _DEFAULT_SETTINGS
         if settings:
             config_settings.update(settings)
@@ -168,8 +169,9 @@ class Config(object):
         new_config = Config(config_settings, name)
         for index, config in enumerate(cls._configs):
             if config.name == name:
-                logger.warn('Recreating Config named {}'.format(name))
+                logger.warn('Recreating Config named %s', name)
                 cls._configs[index] = new_config
+                break
         else:
             cls._configs.append(new_config)
 
@@ -185,7 +187,7 @@ class Config(object):
         """
         Use this to access your desired Config.
         """
-        logger.debug('Retrieving Config named "{}"'.format(name))
+        logger.debug('Retrieving Config named "%s"', name)
 
         for config in cls._configs:
             if config.name == name:
@@ -270,7 +272,7 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         infos["name"] = self.getPluginClass(filename)
         infos["path"] = os.path.join(dirpath, filename)
 
-        logger.debug('Name: {}, Path: {}'.format(infos['name'], infos['path']))
+        logger.debug('Name: %s, Path: %s', infos['name'], infos['path'])
 
         cf_parser = ConfigParser()
         cf_parser.add_section("Core")
@@ -298,6 +300,6 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
 
     def getModulePaths(self, paths):
         for path in paths:
-            for root, dirnames, filenames in os.walk(path):
+            for root, _, filenames in os.walk(path):
                 for filename in fnmatch.filter(filenames, '*.py'):
                     self.module_paths[filename] = os.path.abspath(root)
