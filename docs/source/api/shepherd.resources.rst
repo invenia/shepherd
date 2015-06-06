@@ -1,11 +1,6 @@
 shepherd.resources package
 ==========================
 
-.. automodule:: shepherd.resources
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Subpackages
 -----------
 
@@ -14,3 +9,10 @@ Subpackages
     shepherd.resources.aws
     shepherd.resources.digitalocean
 
+Module contents
+---------------
+
+.. automodule:: shepherd.resources
+    :members:
+    :undoc-members:
+    :show-inheritance:

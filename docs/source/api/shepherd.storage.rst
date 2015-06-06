@@ -1,11 +1,6 @@
 shepherd.storage package
 ========================
 
-.. automodule:: shepherd.storage
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Submodules
 ----------
 
@@ -18,3 +13,10 @@ shepherd.storage.dynamo module
     :show-inheritance:
 
 
+Module contents
+---------------
+
+.. automodule:: shepherd.storage
+    :members:
+    :undoc-members:
+    :show-inheritance:

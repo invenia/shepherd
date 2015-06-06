@@ -95,15 +95,15 @@ class Instance(Resource):
         """
         Handles creating spot or on demand instances.
 
-        INFO - task order is:
-            1) get_security_group_ids
-            2) type_specific_tasks: request_demand or request_spot and check_spot
+        Info: task order is:
+            1. get_security_group_ids
+            2. type_specific_tasks: request_demand or request_spot and check_spot
                 (last task should labelled 'get_instance_id')
-            3) check_running
-            4) create_tags
-            5) attach_volumes
-            6) check_initialized
-            7) ssh_accessible
+            3. check_running
+            4. create_tags
+            5. attach_volumes
+            6. check_initialized
+            7. ssh_accessible
         """
         common_tasks = (
             create_task('get_security_group_ids', self._get_security_group_ids),

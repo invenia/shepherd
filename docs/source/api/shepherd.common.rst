@@ -1,11 +1,6 @@
 shepherd.common package
 =======================
 
-.. automodule:: shepherd.common
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Submodules
 ----------
 
@@ -34,3 +29,10 @@ shepherd.common.utils module
     :show-inheritance:
 
 
+Module contents
+---------------
+
+.. automodule:: shepherd.common
+    :members:
+    :undoc-members:
+    :show-inheritance:

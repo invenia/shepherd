@@ -1,16 +1,12 @@
 shepherd package
 ================
 
-.. automodule:: shepherd
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Subpackages
 -----------
 
 .. toctree::
 
+    shepherd.actions
     shepherd.common
     shepherd.resources
     shepherd.storage
@@ -51,3 +47,10 @@ shepherd.stack module
     :show-inheritance:
 
 
+Module contents
+---------------
+
+.. automodule:: shepherd
+    :members:
+    :undoc-members:
+    :show-inheritance:

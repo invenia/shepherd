@@ -5,8 +5,24 @@ shepherd.manager
 This modules contains the Config object itself, which is the
 primary outward facing object for the package (kind of like app in Flask).
 
-NOTE: Currently the builtin paths and plugins are hardcoded, we may want to
-inspect the plugins module and dirnames to create those variables.
+Notes:
+    * Currently the builtin paths and plugins are hardcoded, we may want to
+    inspect the plugins module and dirnames to create those variables.
+    * See the common/config.schema for the schema of the settings dict.
+    * the default settings dict is::
+
+        {
+            'manifest_path': '',
+            'verbosity': 2,
+            'retries': 120,
+            'delay': 5,
+            'vars': {},
+            'storage': {
+                'name': 'DynamoStorage',
+                'settings': {}
+            },
+        }
+
 """
 from __future__ import print_function
 
@@ -68,6 +84,12 @@ class Config(object):
     logging_verbosity = 0
 
     def __init__(self, settings, name):
+        """Summary
+
+        Args:
+            settings (dict): the dictionary of settings
+            name (str): the config name
+        """
         assert settings is not None
         assert name is not None
 
@@ -97,8 +119,6 @@ class Config(object):
         Handles initialization of the
         :class:`Config <Config>`.  This method shouldn't be called
         outside of this class.
-
-        :param settings: (optional) a settings describing which plugins to load etc.
         """
         logger.debug('Configuring Config')
 
@@ -158,7 +178,11 @@ class Config(object):
         When first setting up the Config you should call this
         class method.
 
-        :param settings: (optional) a settings describing which plugins to load etc.
+        Args:
+            settings (dict, optional): desire settings values overriding the defaults.
+            name (str, optional): the name of the config
+
+        Returns: the created config obj
         """
         logger.debug('Creating Config named "%s"', name)
         config_settings = _DEFAULT_SETTINGS
@@ -179,6 +203,16 @@ class Config(object):
 
     @classmethod
     def make_from_file(cls, filename, name=""):
+        """
+        Loads the settings dict from a file and passes it to Config.make.
+
+        Args:
+            filename (str): name of the file to load
+            name (str, optional): the name of the config
+
+        Returns:
+            Config: the created config obj
+        """
         settings = anyconfig.load(filename, safe=True)
         return cls.make(settings=settings, name=name)
 
@@ -186,6 +220,15 @@ class Config(object):
     def get(cls, name=""):
         """
         Use this to access your desired Config.
+
+        Args:
+            name (str, optional): the unique name of the config you
+                want returned.
+
+        Returns: the config obj
+
+        Raises:
+            KeyError: if a config by that name does't exist.
         """
         logger.debug('Retrieving Config named "%s"', name)
 
@@ -203,8 +246,12 @@ class Config(object):
         worth getting independent copies of them.  For example we will likely
         want to work with multiple copies of the Same Resource plugin.
 
-        :param category_name: (optional) a category to search for plugins in.
-        :param plugin_name: (optional) the name of the plugin to look for.
+        Args:
+            category_name (str, optional): a category to search for plugins in.
+            plugin_name (str, optional): the name of the plugin to look for.
+
+        Returns:
+            list: of the plugins that match the criteria.
         """
         results = []
 
@@ -248,6 +295,12 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
     If the module contains a class that subclasses
     """
     def __init__(self, name, paths):
+        """Summary
+
+        Args:
+            name (str): name of the Analyzer [requirement of yapsy]
+            paths (list): the paths search through for loadable plugins
+        """
         IPluginFileAnalyzer.__init__(self, name)
         self.module_paths = {}
         self.getModulePaths(paths)
@@ -255,6 +308,9 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
     def isValidPlugin(self, filename):
         """
         Checks if the given filename is a valid plugin for this Strategy
+
+        Args:
+            filename (str): name of the file to inspect.
         """
         result = False
 
@@ -267,6 +323,10 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         """
         Returns the extracted plugin informations as a dictionary.
         This function ensures that "name" and "path" are provided.
+
+        Args:
+            dirpath (str): the directory of the file
+            filename (str): the filename
         """
         infos = {}
         infos["name"] = self.getPluginClass(filename)
@@ -281,6 +341,15 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         return infos, cf_parser
 
     def getPluginClass(self, filename):
+        """
+        Extracts the plugin class from the given file.
+
+        Args:
+            filename (str): name of file to inspect
+
+        Returns:
+            str: name of the plugin class
+        """
         plugin_class = None
 
         if filename in self.module_paths:
@@ -299,6 +368,12 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         return plugin_class
 
     def getModulePaths(self, paths):
+        """
+        Extracts the module_paths from the provided lis of paths.
+
+        Args:
+            paths (list): list of paths to walk
+        """
         for path in paths:
             for root, _, filenames in os.walk(path):
                 for filename in fnmatch.filter(filenames, '*.py'):

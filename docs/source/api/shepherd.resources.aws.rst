@@ -1,11 +1,6 @@
 shepherd.resources.aws package
 ==============================
 
-.. automodule:: shepherd.resources.aws
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Submodules
 ----------
 
@@ -58,3 +53,10 @@ shepherd.resources.aws.volume module
     :show-inheritance:
 
 
+Module contents
+---------------
+
+.. automodule:: shepherd.resources.aws
+    :members:
+    :undoc-members:
+    :show-inheritance:

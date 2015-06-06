@@ -33,6 +33,10 @@ class Action(IPlugin):
     def run(self, config, **kwargs):
         """
         Takes an undefined set of name arguments.
+
+        Args:
+            config (Config): the config object for locating plugins, settings, etc.
+            kwargs (dict): named parameters that should passed to the action
         """
         raise NotImplementedError(
             'The abstractmethod "run" was not '
@@ -42,14 +46,15 @@ class Action(IPlugin):
 
 class Parser(IPlugin):
     """
-    Handles any modifications to the params subdict before merging
-    the params into the resources.
+    During parsing of manifests Parsers can be used to handles any
+    modifications to the params subdict before merging the params
+    into the resources.
 
     This could be used for dynamic variables like getting the latest
     volume snapshots, external resources, etc.
 
     NOTE: multiple parsers can be run on the paramsdict, so ensure that they
-    are independent of each other.  For example you may want a parser for
+    are independent of each other. For example you may want a parser for
     modifying each dynamic variable.
     """
     __metaclass__ = ABCMeta
@@ -60,6 +65,10 @@ class Parser(IPlugin):
         Takes a dict of the parameters and returns the modified version.
         It optionally takes a config which could contain default input values
         to use.
+
+        Args:
+            paramsdict (dict): the current params dict.
+            config (Config, optional): the config object if the Parser would like to
         """
         raise NotImplementedError(
             'The abstractmethod "run" was not '
@@ -81,6 +90,7 @@ class Storage(IPlugin):
     __metaclass__ = ABCMeta
 
     def __init__(self):
+        """Summary"""
         self._logger = logging.getLogger(
             'shepherd.storage.{}'.format(type(self).__name__)
         )
@@ -93,6 +103,9 @@ class Storage(IPlugin):
         Search the store for serialized stacks
         that match to those tags. Returning a list of
         the stack names that match.
+
+        Args:
+            tags (dict): tags to use when search for stacks.
         """
         raise NotImplementedError(
             'The abstractmethod "search" was not '
@@ -106,6 +119,9 @@ class Storage(IPlugin):
 
         Search the store for the serialized stack with
         that name.  Returns a single stack dict.
+
+        Args:
+            name (str): the global_name of the stack to load.
         """
         raise NotImplementedError(
             'The abstractmethod "load" was not '
@@ -117,6 +133,9 @@ class Storage(IPlugin):
         """
         Takes a stack dict and stores it
         in the datastore of your choice.
+
+        Args:
+            stack (Stack): dumps the stack into the storage media
         """
         raise NotImplementedError(
             'The abstractmethod "dump" was not '
@@ -132,6 +151,21 @@ class Resource(IPlugin):
     __metaclass__ = ABCMeta
 
     def __init__(self, provider):
+        """Summary
+
+        Args:
+            provider (str): the name of the provider the resource is designed
+                to run on.
+
+        Attributes:
+            local_name (str): the name local to the stack.
+            global_name (str): the global name that is unique within the storage and provider.
+            provider (str): the provider of the resource.
+            type (str): the name of the resource type.
+            tags (dict): a dictionary of tags used for looking up resources in shepherd
+                or on the provider.
+            stack (Stack): the stack the resource belongs to.
+        """
         self._local_name = None
         self._global_name = None
         self._provider = provider
@@ -255,12 +289,28 @@ class Resource(IPlugin):
         return wrap
 
     def deserialize(self, data):
+        """
+        Deserializes the keys and values in a dictionary into attributes
+        for self.
+
+        Notes:
+            The mapping of keys to attributes is done using ``self._attributes_map``.
+
+        Args:
+            data (dict): a dictionary of the attributes to deserialize.
+        """
         setattrs(self, self._attributes_map, data)
         self._logger.debug(
             'Deserialized %s %s', type(self).__name__, self._local_name
         )
 
     def serialize(self):
+        """
+        Serializes the attributes to a dict using ``self._attributes_map``.
+
+        Returns:
+            dict: the serialized dictionary of the attributes.
+        """
         self._logger.debug(
             'Serializing %s %s', type(self).__name__, self._local_name
         )
@@ -288,6 +338,9 @@ class Resource(IPlugin):
     def get_dependencies(self):
         """
         Generates a list of dependencies for the resource.
+
+        Returns:
+            list: of other resource names this resource depends on.
         """
         raise NotImplementedError(
             'The abstractmethod "get_dependencies" was '
@@ -295,13 +348,16 @@ class Resource(IPlugin):
         )
 
 
-def is_plugin(obj):
+def is_plugin(cls):
     """
     Accepts a class and returns a boolean as to whether the class is a valid
     plugin.
 
     Kind of a hack, but it dynamically scans the plugins file for all valid
     shepherd plugin abstract base classes.
+
+    Args:
+        cls (class): the class that may be a plugin.
     """
     mod = sys.modules[__name__]
 
@@ -309,11 +365,9 @@ def is_plugin(obj):
         # Kind of ugly if statem making sure we don't count IPlugin
         # or the abs plugins before checking if it subclasses them.
         if (plugin.__name__ != 'IPlugin' and
-                plugin.__name__ != obj.__name__ and
-                issubclass(obj, IPlugin) and
-                issubclass(obj, plugin)):
-            # print(plugin.__name__)
-            # print(obj.__name__)
+                plugin.__name__ != cls.__name__ and
+                issubclass(cls, IPlugin) and
+                issubclass(cls, plugin)):
             return True
 
     return False

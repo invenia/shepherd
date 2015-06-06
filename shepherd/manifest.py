@@ -1,3 +1,7 @@
+"""
+Handles loading manifest files into a list of valid resource dicts.
+Possibly from multiple files.
+"""
 from __future__ import print_function
 from future.builtins import dict
 
@@ -36,6 +40,8 @@ class Manifest(object):
 
     NOTE: the expected layout of the resources list should look something
     like this.
+    ::
+
         [
             {
                 'Name': 'MyInstance',
@@ -51,7 +57,7 @@ class Manifest(object):
                     ...
                 ],
 
-                'UserData' : '#!/bin/bash\necho \"initializing stack\"\n'
+                'UserData' : '#!/bin/bash\\necho \"initializing stack\"\\n'
                 'Tags' : [
                     {
                         'Key' : 'Name',
@@ -68,7 +74,7 @@ class Manifest(object):
             ...
         ]
 
-        VS
+    VS::
 
         {
             "MyInstance" :
@@ -97,12 +103,13 @@ class Manifest(object):
 
                     "UserData" :
                     { "Fn::Base64" : { "Fn::Join" : [ "", [
-                    "#!/bin/bash\n \"initializing stack\"\n"
+                    "#!/bin/bash\\n \"initializing stack\"\\n"
                     ]]}}
                 }
             },
             ...
         }
+
     Notice how only stack resource level variables like
     'StackDashboardSecurityGroup' remain.  Also, how the the name has been
     moved inside the dict and the properties have been moved up a level.
@@ -113,6 +120,9 @@ class Manifest(object):
 
         NOTE: I'm purposefully not removing the tmp directory on errors,
         because we may want to look at its contents if something fails
+
+        Args:
+            config (Config): Description
         """
         self._config = config
         self._template = {}
@@ -126,7 +136,7 @@ class Manifest(object):
             'Storing manifest temp files in %s.',
             self._working_dir
         )
-        self._loader = Loader(self._filename, self._working_dir)
+        self._loader = Loader(self._filename)
 
     @property
     def resources(self):
@@ -190,8 +200,6 @@ class Manifest(object):
                     logger=logger
                 )
 
-        # self.export_cfn()
-
     def map(self):
         """
         Maps values in the params dict to the values in the resources dict
@@ -219,9 +227,9 @@ class Manifest(object):
             fobj.write(json.dumps(self._resources, indent=1, sort_keys=True))
 
     def clear(self):
-        if "debug" in self._settings and not self._settings["debug"]:
-            logger.info('Removing %s', self._working_dir)
-            rmtree(self._working_dir)
+        """Cleans up the working directory"""
+        logger.debug('Removing %s', self._working_dir)
+        rmtree(self._working_dir)
 
 
 class Loader(object):
@@ -232,39 +240,54 @@ class Loader(object):
     list or dict is a dict with 1 entry, where the key is include and the
     value is the path to the file.
 
-    List)
+    List::
+
         MyList: [
             ...
             {"include" : "../path/to/file"},
             ...
         ]
 
-    Dict)
+    Dict::
+
         MyDict: {
             ...
             "include foo" : "../path/to/foo.json"},
             ...
         }
 
-        NOTE: in the dict case the key value pair will be ignore like the value
-        in the list.  Also, the file being imported must be a dict at the top
-        level.
+    NOTE: in the dict case the key value pair will be ignore like the value
+    in the list.  Also, the file being imported must be a dict at the top
+    level.
     """
-    def __init__(self, filename, tmpdir):
+    def __init__(self, filename):
         """
         recursively includes references to other template files with the json.
         While good practice will be to include your files to variables
         at the beginning of your files, this provides a generic solution.
+
+        Args:
+            filename (str): file to start loading
         """
         self._filename = filename
-        self.tmpdir = tmpdir
 
     def run(self):
+        """
+        Runs the loader returning the completed
+
+        Returns:
+            collection: Returns the fully loaded and unified template.
+        """
         return self.load(self._filename)
 
     def load(self, filename):
         """
         Handles the actual loading and preporcessing of files.
+
+        Args:
+            filename (str): the file to load.
+        Returns:
+            collection: returns load collection and all recusively loaded ones.
         """
         try:
             realname = os.path.realpath(filename)

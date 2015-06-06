@@ -1,8 +1,7 @@
 """
-Contains various utility functions for parsing the json and yaml
-stack configs.
-
-NOTE: This module is mostly used by the Manifest object.
+Provides various utility functions for shepherd ranging from
+validating configs to mapping object attributes to and from
+dictionaries.
 """
 from __future__ import print_function
 
@@ -16,6 +15,7 @@ from shepherd.common.exceptions import ConfigError, LoggingException, PluginErro
 
 LOCALREF = 'Fn::LocalRef'
 IMPORTREF = 'Fn::ImportRef'
+LOGFORMAT = '[%(levelname)s  %(asctime)s  %(name)s] - "%(message)s"'
 
 
 def run(action_name, config, **kwargs):
@@ -23,8 +23,13 @@ def run(action_name, config, **kwargs):
     Searches for the action plugin to run.
     Searches both the default paths as well as
 
-    :param task: the name of the task you want to run.
-    :param kwargs: a dictionary of parameters to be passed to the task.
+    Args:
+        action_name (TYPE): the name of the action you want to run.
+        config (TYPE): the config object used for creating or location a stack to work on.
+        **kwargs: a dictionary of parameters to be passed to the task.
+
+    Returns:
+        the action output
     """
     actions = config.get_plugins(category_name='Action', plugin_name=action_name)
 
@@ -37,13 +42,24 @@ def run(action_name, config, **kwargs):
 
 def pascal_to_underscore(pascal_str):
     """
+    Converts pascal format strings to underscore format.
+
     http://stackoverflow.com/questions/1175208/elegant-python-function-to-convert-camelcase-to-camel-case
+
+    Args:
+        pascal_str (TYPE): the pascal case string we want to convert to underscore format.
     """
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', pascal_str)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 def validate_config(config):
+    """
+    Validates the config format with the schema file.
+
+    Args:
+        config (dict): a dictionary of the config settings.
+    """
     try:
         path = os.path.dirname(os.path.realpath(__file__))
         schema_file = os.path.join(path, 'config.schema')
@@ -58,12 +74,14 @@ def setattrs(obj, attrmap, values):
     """
     Handles setting object attributes from dict.
 
-    :param obj: the object with the attributes being set.
-    :param attrmap: a dict mapping dict keys to attribute names, where the
-        keys match the expected keys in values (underscore case) and the
-        values are the attribute names.
-    :param values: the dict whose values are mapping to the object.
-    :return: the updated object
+    Args:
+        obj (object): the object with the attributes being set.
+        attrmap (dict): a dict mapping dict keys to attribute names, where the
+            keys match the expected keys in values (underscore case) and the
+            values are the attribute names.
+        values (dict): the dict whose values are mapping to the object.
+    Returns:
+        obj (object): the updated object
     """
     for key in values:
         attr = pascal_to_underscore(key)
@@ -77,11 +95,16 @@ def getattrs(obj, attrmap):
     """
     Handles extracting object attributes into a dict.
 
-    :param obj: the object to extract the attributes from.
-    :param attrmap: a dict mapping dict keys to attribute names, where the
-        keys match the keys of the resulting dict and the values match their
-        corresponding attributes.
+    :param attrmap:
     :return: the result dict.
+
+    Args:
+        obj (object): the object to extract the attributes from.
+        attrmap (dict): a dict mapping dict keys to attribute names, where the
+            keys match the keys of the resulting dict and the values match their
+            corresponding attributes.
+    Returns:
+        result (dict): dictionary of the mapped attributes from obj
     """
     result = {}
 
@@ -97,6 +120,13 @@ def dict_contains(superdict, subdict):
     Returns a boolean as to whether the
     superdict contains the same key value pairs
     of the subdict.
+
+    Args:
+        superdict (dict): dict with superset of keys in subdict
+        subdict (dict): dict with subset of keys from superdict
+
+    Returns:
+        result (bool):
     """
     unmatchable = object()
     for key, value in subdict.items():
@@ -111,6 +141,16 @@ def tasks_passed(results, logger, msg=None, exception=None):
     """
     Logs a warning msg and returns a bool if results contains
     any failures.
+
+    Args:
+        results (namedtuple): namedtuple containing the sets of failed
+            and completed tasks returned by Arbiter
+        logger (Logger): The logger to log to if any tasks failed
+        msg (str, optional): A msg to log if any tasks failed.
+        exception (Exception, optional): An Exception object to throw if
+            supplied.
+    Returns:
+        resp (bool): Whether all tasks in results completed.
     """
     resp = True
     if len(results.failed) > 0:
@@ -121,9 +161,9 @@ def tasks_passed(results, logger, msg=None, exception=None):
         if exception:
             logger.error(full_msg)
             if issubclass(type(exception), LoggingException):
-                exception(full_msg, logger)
+                raise exception(full_msg, logger)
             else:
-                exception(full_msg)
+                raise exception(full_msg)
         else:
             logger.warn(full_msg)
             resp = False
@@ -135,6 +175,12 @@ def get_logger(obj):
     """
     Provides an alternative method of getting a useful logger name
     for an object because yapsy tends to mess up how `__name__` works.
+
+    Args:
+        obj (object): the object to build a custom logger name for.
+
+    Returns:
+        logger (Logger) - where the name is the __module__.__name__ of type(obj).
     """
     return logging.getLogger('{}.{}'.format(
         type(obj).__module__,
@@ -142,19 +188,35 @@ def get_logger(obj):
     ))
 
 
-def configure_logging(verbosity):
-    logformat = '[%(levelname)s  %(asctime)s  %(name)s] - "%(message)s"'
-    logging.basicConfig(format=logformat)
-    logging.getLogger().setLevel(logging.WARNING)
+def configure_logging(verbosity, logformat=LOGFORMAT):
+    """
+    Sets up logging for the framework.
 
-    if verbosity == 1:
+    All default logging uses logging.basicConfig with the format string
+    `'[%(levelname)s  %(asctime)s  %(name)s] - "%(message)s"'`
+
+    Args:
+        verbosity (int): a verbosity level between 0 and 5.
+            0. No Logging Configured
+            1. Root & shepherd logger = WARNING
+            2. Root logger = WARNING; shepherd logger = INFO
+            3. Root logger = WARNING; shepherd logger = DEBUG
+            4. Root logger = INFO; shepherd logger = DEBUG
+            5. Root logger = DEBUG; shepherd logger = DEBUG
+
+        logformat (str, optional): an alternative format string.
+    """
+    if verbosity > 0:
+        logging.basicConfig(format=logformat)
+        logging.getLogger().setLevel(logging.WARNING)
         logging.getLogger('shepherd').setLevel(logging.WARNING)
-    elif verbosity == 2:
-        logging.getLogger('shepherd').setLevel(logging.INFO)
-    elif verbosity >= 3:
-        if verbosity == 4:
-            logging.getLogger().setLevel(logging.INFO)
-        elif verbosity >= 5:
-            logging.getLogger().setLevel(logging.DEBUG)
 
-        logging.getLogger('shepherd').setLevel(logging.DEBUG)
+        if verbosity == 2:
+            logging.getLogger('shepherd').setLevel(logging.INFO)
+        elif verbosity >= 3:
+            if verbosity == 4:
+                logging.getLogger().setLevel(logging.INFO)
+            elif verbosity >= 5:
+                logging.getLogger().setLevel(logging.DEBUG)
+
+            logging.getLogger('shepherd').setLevel(logging.DEBUG)

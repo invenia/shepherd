@@ -20,7 +20,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) sou
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) source
 
 rst:
-	sphinx-apidoc sphinx-apidoc -f -o docs/source/api/ ../shepherd
+	sphinx-apidoc -f -o source/api/ ../shepherd
 
 .PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest coverage gettext
 
@@ -53,6 +53,7 @@ help:
 
 clean:
 	rm -rf $(BUILDDIR)/*
+	rm -rf source/api/*
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
