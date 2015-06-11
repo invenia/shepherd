@@ -14,4 +14,5 @@ Contents:
    providers
    resources
    storage
+   actions
    environments
