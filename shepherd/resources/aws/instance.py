@@ -53,6 +53,7 @@ class Instance(Resource):
         self._instance_id = None
         self._security_group_ids = []
         self._spot_instance_request = None
+        self._ip = None
         self._reservation = None
         self._block_device_map = get_block_device_mapping()
         self._terminated = True
@@ -89,6 +90,10 @@ class Instance(Resource):
                 deps.append(security_group)
 
         return deps
+
+    @property
+    def ip(self):
+        return self._ip
 
     @Resource.validate_create()
     def create(self):
@@ -249,6 +254,7 @@ class Instance(Resource):
         instance = instances[0]
         if instance.state == INST_RUNNING_STATE:
             self._terminated = False
+            self._ip = instance.ip_address
             resp = True
 
         return resp

@@ -26,6 +26,8 @@ setup(
         'arbiter==0.4.0',
         'attrdict',
         'jinja2',
+        'gitpython',
+        'envoy'
     ],
 
     dependency_links=[

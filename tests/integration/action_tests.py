@@ -8,7 +8,14 @@ from within.shell import working_directory
 from shepherd.config import Config
 from shepherd.common.utils import run
 
-MANIFEST_PATH = 'manifests/simple'
+MANIFEST_PATH = os.path.join(
+    os.path.dirname(__file__),
+    'manifests/simple'
+)
+PLAYBOOK_PATH = os.path.join(
+    os.path.dirname(__file__),
+    'ansible_playbook'
+)
 
 
 class TestActions(TestCase):
@@ -25,6 +32,20 @@ class TestActions(TestCase):
     def test_destroy(self):
         global_name = self.run_action('CreateStack', name='TestStack')
         self.run_action('DestroyStack', name=global_name)
+
+    @mock_iam()
+    @mock_ec2()
+    @mock_dynamodb()
+    def test_ansible(self):
+        global_name = self.run_action('CreateStack', name='TestStack')
+        self.run_action(
+            'Ansible',
+            name=global_name,
+            path=PLAYBOOK_PATH,
+            playbook='playbook.yml',
+            vault_key_file=os.path.join(PLAYBOOK_PATH, 'vault-password'),
+            opt_flags='--dry-run'
+        )
 
     def run_action(self, action, **kwargs):
         config = None

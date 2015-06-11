@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Ansible Action Schema",
+  "type": "object",
+  "properties": {
+    "name": {"type": "string"},
+    "vault_pass": {"type": "string"},
+    "vault_key_file": {"type": "string"},
+    "ask_vault": {"type": "boolean"},
+    "extra_vars": {"type": "string"},
+    "tags": {"type": "string"},
+    "skip_tags": {"type": "string"},
+    "opt_flags": {"type": "string"},
+    "path": {"type": "string"},
+    "url": {"type": "string"},
+    "playbook": {"type": "string"}
+  },
+  "required": ["name", "playbook"]
+}
