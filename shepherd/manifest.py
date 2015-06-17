@@ -1,3 +1,7 @@
+"""
+Handles loading manifest files into a list of valid resource dicts.
+Possibly from multiple files.
+"""
 from __future__ import print_function
 from future.builtins import dict
 
@@ -11,8 +15,7 @@ from shutil import rmtree
 from within.shell import working_directory
 from jinja2 import Template, StrictUndefined
 
-from shepherd.config import Config
-from shepherd.common.exceptions import ManifestParsingError
+from shepherd.common.exceptions import ManifestError
 
 INCLUDE_KEY = 'include'
 INCLUDE_ERROR_MSG = (
@@ -37,6 +40,8 @@ class Manifest(object):
 
     NOTE: the expected layout of the resources list should look something
     like this.
+    ::
+
         [
             {
                 'Name': 'MyInstance',
@@ -52,7 +57,7 @@ class Manifest(object):
                     ...
                 ],
 
-                'UserData' : '#!/bin/bash\necho \"initializing stack\"\n'
+                'UserData' : '#!/bin/bash\\necho \"initializing stack\"\\n'
                 'Tags' : [
                     {
                         'Key' : 'Name',
@@ -69,7 +74,7 @@ class Manifest(object):
             ...
         ]
 
-        VS
+    VS::
 
         {
             "MyInstance" :
@@ -98,24 +103,28 @@ class Manifest(object):
 
                     "UserData" :
                     { "Fn::Base64" : { "Fn::Join" : [ "", [
-                    "#!/bin/bash\n \"initializing stack\"\n"
+                    "#!/bin/bash\\n \"initializing stack\"\\n"
                     ]]}}
                 }
             },
             ...
         }
+
     Notice how only stack resource level variables like
     'StackDashboardSecurityGroup' remain.  Also, how the the name has been
     moved inside the dict and the properties have been moved up a level.
     """
-    def __init__(self, config_name):
+    def __init__(self, config):
         """
         From the provided paths the specs are loaded and parsed.
 
         NOTE: I'm purposefully not removing the tmp directory on errors,
         because we may want to look at its contents if something fails
+
+        Args:
+            config (Config): Description
         """
-        self._config = Config.get(name=config_name)
+        self._config = config
         self._template = {}
         self._vars = {}
         self._resources = []
@@ -124,9 +133,10 @@ class Manifest(object):
 
         self._working_dir = mkdtemp(prefix=__name__)
         logger.debug(
-            'Storing manifest temp files in {}.'.format(self._working_dir)
+            'Storing manifest temp files in %s.',
+            self._working_dir
         )
-        self._loader = Loader(self._filename, self._working_dir)
+        self._loader = Loader(self._filename)
 
     @property
     def resources(self):
@@ -139,7 +149,7 @@ class Manifest(object):
         is specified, which simply reads either the json or yaml files
         with the name params or resources.
         """
-        logger.debug('Loading {}'.format(self._filename))
+        logger.debug('Loading %s', self._filename)
 
         try:
             self._template = self._loader.run()
@@ -149,7 +159,7 @@ class Manifest(object):
 
         # Write result to file nicely so we can inspect the results later.
         outfile = os.path.join(self._working_dir, "loaded.json")
-        logger.debug('Writing loaded template to {}'.format(outfile))
+        logger.debug('Writing loaded template to %s', outfile)
         with open(outfile, 'w+') as fobj:
             fobj.write(json.dumps(dict(self._template), indent=1, sort_keys=True))
 
@@ -162,9 +172,9 @@ class Manifest(object):
 
         # Simplify the Parameters dict to just key : values
         if 'vars' not in self._template:
-            raise ManifestParsingError(
+            raise ManifestError(
                 'Parameters not in template dict',
-                name=__name__
+                logger=logger
             )
 
         self._vars = self._template['vars']
@@ -178,19 +188,17 @@ class Manifest(object):
             self._vars = parser.run(self._vars)
 
         outfile = os.path.join(self._working_dir, "parsed.json")
-        logger.debug('Writing parsed vars to {}'.format(outfile))
+        logger.debug('Writing parsed vars to %s', outfile)
         with open(outfile, 'w+') as fobj:
             fobj.write(json.dumps(dict(self._vars), indent=1, sort_keys=True))
 
         # Validate that we don't have any None values in the Parameters dict.
-        for key, val in self._vars.items():
+        for val in self._vars.values():
             if val is None:
-                raise ManifestParsingError(
+                raise ManifestError(
                     'Some parameters still equal None after parsing.',
-                    name=__name__
+                    logger=logger
                 )
-
-        # self.export_cfn()
 
     def map(self):
         """
@@ -200,9 +208,9 @@ class Manifest(object):
         logger.debug('Mapping Parameters into and simplifying resources list')
 
         if 'resources' not in self._template:
-            raise ManifestParsingError(
+            raise ManifestError(
                 'Resources not in template dict',
-                name=__name__
+                logger=logger
             )
 
         jinja_template = Template(json.dumps(dict(self._template['resources'])))
@@ -219,9 +227,9 @@ class Manifest(object):
             fobj.write(json.dumps(self._resources, indent=1, sort_keys=True))
 
     def clear(self):
-        if "debug" in self._settings and not self._settings["debug"]:
-            logger.info('Removing {}'.format(self._working_dir))
-            rmtree(self._working_dir)
+        """Cleans up the working directory"""
+        logger.debug('Removing %s', self._working_dir)
+        rmtree(self._working_dir)
 
 
 class Loader(object):
@@ -232,39 +240,54 @@ class Loader(object):
     list or dict is a dict with 1 entry, where the key is include and the
     value is the path to the file.
 
-    List)
+    List::
+
         MyList: [
             ...
             {"include" : "../path/to/file"},
             ...
         ]
 
-    Dict)
+    Dict::
+
         MyDict: {
             ...
             "include foo" : "../path/to/foo.json"},
             ...
         }
 
-        NOTE: in the dict case the key value pair will be ignore like the value
-        in the list.  Also, the file being imported must be a dict at the top
-        level.
+    NOTE: in the dict case the key value pair will be ignore like the value
+    in the list.  Also, the file being imported must be a dict at the top
+    level.
     """
-    def __init__(self, filename, tmpdir):
+    def __init__(self, filename):
         """
         recursively includes references to other template files with the json.
         While good practice will be to include your files to variables
         at the beginning of your files, this provides a generic solution.
+
+        Args:
+            filename (str): file to start loading
         """
         self._filename = filename
-        self.tmpdir = tmpdir
 
     def run(self):
+        """
+        Runs the loader returning the completed
+
+        Returns:
+            collection: Returns the fully loaded and unified template.
+        """
         return self.load(self._filename)
 
     def load(self, filename):
         """
         Handles the actual loading and preporcessing of files.
+
+        Args:
+            filename (str): the file to load.
+        Returns:
+            collection: returns load collection and all recusively loaded ones.
         """
         try:
             realname = os.path.realpath(filename)

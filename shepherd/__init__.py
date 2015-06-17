@@ -14,3 +14,7 @@ __author__ = 'Rory Finnegan'
 
 # P_FILENAME = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 #                          ".pstacks.json")
+
+from shepherd.config import Config
+from shepherd.stack import Stack
+from shepherd.common.utils import run

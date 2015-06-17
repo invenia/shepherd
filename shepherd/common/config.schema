@@ -3,7 +3,7 @@
     "$schema": "http://json-schema.org/schema#",
     "properties": {
         "debug" : {"type": "boolean"},
-        "template_path": {"type": "string"},
+        "manifest_path": {"type": "string"},
         "vars": {
             "type": "object",
             "properties": {
@@ -20,5 +20,5 @@
             "required": ["name", "settings"]
         }
     },
-    "required": ["debug", "template_path", "storage"]
+    "required": ["debug", "manifest_path", "storage"]
 }

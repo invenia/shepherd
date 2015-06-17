@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import boto
-import logging
 import json
 
 from boto.exception import BotoServerError
@@ -11,12 +10,10 @@ from arbiter.sync import run_tasks
 from shepherd.common.plugins import Resource
 from shepherd.common.utils import tasks_passed
 
-logger = logging.getLogger(__name__)
-
 
 class User(Resource):
     def __init__(self):
-        super(User, self).__init__('User', 'aws')
+        super(User, self).__init__('aws')
         self._user_info = None
         self._groups = []
         self._policies = []
@@ -29,13 +26,13 @@ class User(Resource):
 
     def get_dependencies(self):
         deps = []
-        logger.debug(
+        self._logger.debug(
             'Generating a dependency list for IAM User creation: []'
         )
 
         return deps
 
-    @Resource.validate_create(logger)
+    @Resource.validate_create()
     def create(self):
         self._global_name = self.stack.get_global_resource_name(self._local_name)
 
@@ -51,11 +48,11 @@ class User(Resource):
         )
         results = run_tasks(tasks)
         self._available = tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to provision user {}'.format(self._local_name),
         )
 
-    @Resource.validate_destroy(logger)
+    @Resource.validate_destroy()
     def destroy(self):
         tasks = (
             create_task(
@@ -69,14 +66,14 @@ class User(Resource):
         )
         results = run_tasks(tasks)
         self._available = not tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to deprovision user {}'.format(self._local_name)
         )
 
     def _create_user(self):
         """ Handles the creation request """
         if not self._user_info:
-            logger.debug('Creating user {}'.format(self._local_name))
+            self._logger.debug('Creating user %s', self._local_name)
             conn = boto.connect_iam()
             self._user_info = conn.create_user(self._global_name)
 
@@ -85,16 +82,16 @@ class User(Resource):
     def _delete_user(self):
         """ Handles the deletion request """
         conn = boto.connect_iam()
-        logger.debug('Deleting user {}'.format(self._local_name))
+        self._logger.debug('Deleting user %s', self._local_name)
         conn.delete_user(self._global_name)
         return True
 
     def _create_policies(self):
         """ Creates any required user policies """
         conn = boto.connect_iam()
-        logger.debug('Creating policies for user {}'.format(self._local_name))
+        self._logger.debug('Creating policies for user %s', self._local_name)
         for policy in self._policies:
-            logger.debug('Creating policiy {}'.format(policy['PolicyName']))
+            self._logger.debug('Creating policiy %s', policy['PolicyName'])
             conn.put_user_policy(
                 self._global_name,
                 policy['PolicyName'],
@@ -106,7 +103,7 @@ class User(Resource):
     def _delete_policies(self):
         """ Delete any user policies """
         conn = boto.connect_iam()
-        logger.debug('Deleting policies for user {}'.format(self._local_name))
+        self._logger.debug('Deleting policies for user %s', self._local_name)
         for policy in self._policies:
             try:
                 conn.get_user_policy(
@@ -114,12 +111,12 @@ class User(Resource):
                     policy['PolicyName']
                 )
             except:
-                logger.warn(
-                    'IAM Policy {} not found for user {}'
-                    .format(policy['PolicyName'], self._global_name)
+                self._logger.warn(
+                    'IAM Policy %s not found for user %s',
+                    policy['PolicyName'], self._global_name
                 )
             else:
-                logger.debug('Deleting policy {}'.format(policy['PolicyName']))
+                self._logger.debug('Deleting policy %s', policy['PolicyName'])
                 conn.delete_user_policy(
                     self._global_name,
                     policy['PolicyName']
@@ -134,7 +131,7 @@ class User(Resource):
             try:
                 conn.get_group(groupname)
             except:
-                logger.warn('IAM group {} not found'.format(groupname))
+                self._logger.warn('IAM group %s not found', groupname)
             else:
                 conn.add_user_to_group(groupname, self._global_name)
 
@@ -147,7 +144,7 @@ class User(Resource):
             try:
                 conn.get_group(groupname)
             except:
-                logger.warn('IAM group {} not found')
+                self._logger.warn('IAM group %s not found', groupname)
             else:
                 conn.remove_user_from_group(groupname, self._global_name)
 
@@ -161,7 +158,7 @@ class User(Resource):
             conn.get_user(self._global_name)
             ret = True
         except BotoServerError:
-            logger.debug('User {} doesn\'t exist yet'.format(self._local_name))
+            self._logger.debug('User %s doesn\'t exist yet', self._local_name)
             pass
 
         return ret

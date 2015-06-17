@@ -1,18 +1,15 @@
 from __future__ import print_function
 
-import logging
 import boto
 
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
 from shepherd.resources.aws import get_security_group
 
-logger = logging.getLogger(__name__)
-
 
 class SecurityGroupIngress(Resource):
     def __init__(self):
-        super(SecurityGroupIngress, self).__init__('SecurityGroupIngress', 'aws')
+        super(SecurityGroupIngress, self).__init__('aws')
         self._group_name = None
         self._group_id = None
         self._src_security_group_name = None
@@ -44,9 +41,9 @@ class SecurityGroupIngress(Resource):
         if src_group:
             deps.append(src_group)
 
-        logger.debug(
+        self._logger.debug(
             'Generating a dependency list for EC2 Security Group Ingress '
-            'creation: {}'.format(', '.join((dep.local_name for dep in deps)))
+            'creation: %s', ', '.join((dep.local_name for dep in deps))
         )
 
         return deps
@@ -54,7 +51,7 @@ class SecurityGroupIngress(Resource):
     # I may not be making these request properly
     # documentation appears to say I can either make a port based rule
     # with an ip OR a group based rule with source group id
-    @Resource.validate_create(logger)
+    @Resource.validate_create()
     def create(self):
         self._set_group_names()
 
@@ -66,10 +63,10 @@ class SecurityGroupIngress(Resource):
             raise StackError(
                 'Failed to create EC2 Security Group Ingress {}\n{}'
                 .format(self._local_name, resp),
-                log=False
+                logger=self._logger
             )
 
-    @Resource.validate_destroy(logger)
+    @Resource.validate_destroy()
     def destroy(self):
         self._set_group_names()
 
@@ -81,7 +78,7 @@ class SecurityGroupIngress(Resource):
             raise StackError(
                 'Failed to destroy EC2 Security Group Ingress {}\n{}'
                 .format(self._local_name, resp),
-                log=False
+                logger=self._logger
             )
 
     def _set_group_names(self):

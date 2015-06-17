@@ -5,8 +5,24 @@ shepherd.manager
 This modules contains the Config object itself, which is the
 primary outward facing object for the package (kind of like app in Flask).
 
-NOTE: Currently the builtin paths and plugins are hardcoded, we may want to
-inspect the plugins module and dirnames to create those variables.
+Notes:
+    * Currently the builtin paths and plugins are hardcoded, we may want to
+    inspect the plugins module and dirnames to create those variables.
+    * See the common/config.schema for the schema of the settings dict.
+    * the default settings dict is::
+
+        {
+            'manifest_path': '',
+            'verbosity': 2,
+            'retries': 120,
+            'delay': 5,
+            'vars': {},
+            'storage': {
+                'name': 'DynamoStorage',
+                'settings': {}
+            },
+        }
+
 """
 from __future__ import print_function
 
@@ -15,7 +31,6 @@ import sys
 import inspect
 import fnmatch
 import logging
-import copy
 import anyconfig
 
 from os.path import dirname, join, abspath
@@ -28,11 +43,11 @@ from attrdict import AttrDict
 
 # from shepherd.common.exceptions import PluginError
 from shepherd.common.plugins import Resource
-from shepherd.common.plugins import Task
+from shepherd.common.plugins import Action
 from shepherd.common.plugins import Storage
 from shepherd.common.plugins import Parser
 from shepherd.common.plugins import is_plugin
-from shepherd.common.utils import validate_config
+from shepherd.common.utils import validate_config, configure_logging
 
 if sys.version > '3':
     from configparser import ConfigParser
@@ -42,12 +57,12 @@ else:
 _PACKAGE_PATH = dirname(abspath(__file__))
 _BUILTIN_PATHS = [
     join(_PACKAGE_PATH, 'resources'),
-    join(_PACKAGE_PATH, 'tasks'),
+    join(_PACKAGE_PATH, 'actions'),
     join(_PACKAGE_PATH, 'storage'),
 ]
 _DEFAULT_SETTINGS = AttrDict({
-    'template_path': '',
-    'debug': True,
+    'manifest_path': '',
+    'verbosity': 2,
     'retries': 120,
     'delay': 5,
     'vars': {},
@@ -65,9 +80,20 @@ class Config(object):
     The :class:`Config <Config>` is responsible for managing the
     plugins and executing given tasks.
     """
-    _configs = {}
+    _configs = []
+    logging_verbosity = 0
 
-    def __init__(self, settings):
+    def __init__(self, settings, name):
+        """Summary
+
+        Args:
+            settings (dict): the dictionary of settings
+            name (str): the config name
+        """
+        assert settings is not None
+        assert name is not None
+
+        self._name = name
         self._settings = settings
         self._inspect_analyzer = None
         self._default_analyzer = None
@@ -76,7 +102,16 @@ class Config(object):
         self._plugins = None
         self._stacks = []
 
-        validate_config(self.settings)
+        validate_config(settings)
+        if Config.logging_verbosity < settings['verbosity']:
+            configure_logging(settings['verbosity'])
+            Config.logging_verbosity = settings['verbosity']
+            logger.info(
+                'Increased logging verbosity from %s to %s with the new config...',
+                Config.logging_verbosity,
+                settings['verbosity']
+            )
+
         self._configure_plugins()
 
     def _configure_plugins(self):
@@ -84,8 +119,6 @@ class Config(object):
         Handles initialization of the
         :class:`Config <Config>`.  This method shouldn't be called
         outside of this class.
-
-        :param settings: (optional) a settings describing which plugins to load etc.
         """
         logger.debug('Configuring Config')
 
@@ -112,7 +145,7 @@ class Config(object):
         # Create the categories filter dict
         self._categories = {
             "Resource": Resource,
-            "Task": Task,
+            "Action": Action,
             "Storage": Storage,
             "Parser": Parser,
         }
@@ -132,6 +165,10 @@ class Config(object):
         self._plugins.collectPlugins()
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def settings(self):
         return self._settings
 
@@ -141,64 +178,65 @@ class Config(object):
         When first setting up the Config you should call this
         class method.
 
-        :param settings: (optional) a settings describing which plugins to load etc.
+        Args:
+            settings (dict, optional): desire settings values overriding the defaults.
+            name (str, optional): the name of the config
+
+        Returns: the created config obj
         """
-        logger.debug('Creating Config named "{}"'.format(name))
+        logger.debug('Creating Config named "%s"', name)
         config_settings = _DEFAULT_SETTINGS
-        if settings:
-            config_settings = config_settings + settings
-
-        if name not in cls._configs:
-            logger.info('Creating Config...')
-            cls._configs[name] = Config(config_settings)
-
-        return cls._configs[name]
-
-    @classmethod
-    def make_from_file(cls, filename, name=""):
-        config_settings = _DEFAULT_SETTINGS
-
-        if name in cls._configs:
-            logger.warn('Recreating Config object from settings loaded in file')
-        else:
-            logger.debug('Creating Config from file...')
-
-        settings = anyconfig.load(filename, safe=True)
         if settings:
             config_settings.update(settings)
 
-        cls._configs[name] = Config(config_settings)
+        assert config_settings is not None
+        new_config = Config(config_settings, name)
+        for index, config in enumerate(cls._configs):
+            if config.name == name:
+                logger.warn('Recreating Config named %s', name)
+                cls._configs[index] = new_config
+                break
+        else:
+            cls._configs.append(new_config)
 
-        return cls._configs[name]
+        return new_config
+
+    @classmethod
+    def make_from_file(cls, filename, name=""):
+        """
+        Loads the settings dict from a file and passes it to Config.make.
+
+        Args:
+            filename (str): name of the file to load
+            name (str, optional): the name of the config
+
+        Returns:
+            Config: the created config obj
+        """
+        settings = anyconfig.load(filename, safe=True)
+        return cls.make(settings=settings, name=name)
 
     @classmethod
     def get(cls, name=""):
         """
         Use this to access your desired Config.
-        """
-        logger.debug('Retrieving Config named "{}"'.format(name))
 
-        if name in cls._configs:
-            return cls._configs[name]
+        Args:
+            name (str, optional): the unique name of the config you
+                want returned.
+
+        Returns: the config obj
+
+        Raises:
+            KeyError: if a config by that name does't exist.
+        """
+        logger.debug('Retrieving Config named "%s"', name)
+
+        for config in cls._configs:
+            if config.name == name:
+                return config
         else:
             raise KeyError('No config with the name {} exists'.format(name))
-
-    # Unclear whether to keep this
-    # def run(self, task, **kwargs):
-    #     """
-    #     Searches for the task to apply to the stack.
-    #     Searches both the default paths as well as
-
-    #     :param task: the name of the task you want to run.
-    #     :param kwargs: a dictionary of parameters to be passed to the task.
-    #     """
-    #     tasks = self.get_plugins(category_name='Task', plugin_name=task)
-
-    #     if tasks:
-    #         task = tasks[0]
-    #         task.run(**kwargs)
-    #     else:
-    #         raise PluginError('Failed to locate task {}'.format(task))
 
     def get_plugins(self, category_name=None, plugin_name=None):
         """
@@ -208,8 +246,12 @@ class Config(object):
         worth getting independent copies of them.  For example we will likely
         want to work with multiple copies of the Same Resource plugin.
 
-        :param category_name: (optional) a category to search for plugins in.
-        :param plugin_name: (optional) the name of the plugin to look for.
+        Args:
+            category_name (str, optional): a category to search for plugins in.
+            plugin_name (str, optional): the name of the plugin to look for.
+
+        Returns:
+            list: of the plugins that match the criteria.
         """
         results = []
 
@@ -220,13 +262,13 @@ class Config(object):
             )
 
             if plugin_info:
-                results.append(copy.deepcopy(plugin_info.plugin_object))
+                results.append(plugin_info.plugin_object.__class__())
 
         elif category_name and not plugin_name:
             plugin_infos = self._plugins.getPluginsOfCategory(category_name)
 
             for plugin_info in plugin_infos:
-                results.append(copy.deepcopy(plugin_info.plugin_object))
+                results.append(plugin_info.plugin_object.__class__())
 
         elif plugin_name and not category_name:
             for category in self._plugins.getCategories():
@@ -236,13 +278,13 @@ class Config(object):
                 )
 
                 if plugin_info:
-                    results.append(copy.deepcopy(plugin_info.plugin_object))
+                    results.append(plugin_info.plugin_object.__class__())
 
         elif not category_name and not plugin_name:
             plugin_infos = self._plugins.getAllPlugins()
 
             for plugin_info in plugin_infos:
-                results.append(copy.deepcopy(plugin_info.plugin_object))
+                results.append(plugin_info.plugin_object.__class__())
 
         return results
 
@@ -253,6 +295,12 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
     If the module contains a class that subclasses
     """
     def __init__(self, name, paths):
+        """Summary
+
+        Args:
+            name (str): name of the Analyzer [requirement of yapsy]
+            paths (list): the paths search through for loadable plugins
+        """
         IPluginFileAnalyzer.__init__(self, name)
         self.module_paths = {}
         self.getModulePaths(paths)
@@ -260,6 +308,9 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
     def isValidPlugin(self, filename):
         """
         Checks if the given filename is a valid plugin for this Strategy
+
+        Args:
+            filename (str): name of the file to inspect.
         """
         result = False
 
@@ -272,12 +323,16 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         """
         Returns the extracted plugin informations as a dictionary.
         This function ensures that "name" and "path" are provided.
+
+        Args:
+            dirpath (str): the directory of the file
+            filename (str): the filename
         """
         infos = {}
         infos["name"] = self.getPluginClass(filename)
         infos["path"] = os.path.join(dirpath, filename)
 
-        logger.debug('Name: {}, Path: {}'.format(infos['name'], infos['path']))
+        logger.debug('Name: %s, Path: %s', infos['name'], infos['path'])
 
         cf_parser = ConfigParser()
         cf_parser.add_section("Core")
@@ -286,6 +341,15 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         return infos, cf_parser
 
     def getPluginClass(self, filename):
+        """
+        Extracts the plugin class from the given file.
+
+        Args:
+            filename (str): name of file to inspect
+
+        Returns:
+            str: name of the plugin class
+        """
         plugin_class = None
 
         if filename in self.module_paths:
@@ -304,7 +368,13 @@ class PluginFileAnalyzerInspection(IPluginFileAnalyzer):
         return plugin_class
 
     def getModulePaths(self, paths):
+        """
+        Extracts the module_paths from the provided lis of paths.
+
+        Args:
+            paths (list): list of paths to walk
+        """
         for path in paths:
-            for root, dirnames, filenames in os.walk(path):
+            for root, _, filenames in os.walk(path):
                 for filename in fnmatch.filter(filenames, '*.py'):
                     self.module_paths[filename] = os.path.abspath(root)

@@ -36,11 +36,12 @@ def validate_manifests(path):
     Actually creates the manifest for a given path
     and checks that it can be properly parsed.
     """
+    config = None
     for filename in os.listdir(path):
         if fnmatch.fnmatch(filename, '*config.yml'):
-            Config.make_from_file(
+            config = Config.make_from_file(
                 os.path.join(path, filename),
                 name=path
             )
 
-            Stack.make('TestStack', config_name=path)
+            Stack.make('TestStack', config)

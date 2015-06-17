@@ -1,0 +1,12 @@
+---
+# From https://github.com/ansible/ansible/blob/devel/test/integration/test_vault.yml
+- hosts: tag_stack_name_WebServer
+  vars_files:
+    - vars/vault.yml
+
+  gather_facts: False
+
+  tasks:
+    - assert:
+        that:
+          - 'mypassword == "asecretpassword"'

@@ -19,36 +19,42 @@ from yapsy.IPlugin import IPlugin
 from shepherd.common.exceptions import StackError
 from shepherd.common.utils import setattrs, getattrs
 
-logger = logging.getLogger(__name__)
 
-
-class Task(IPlugin):
+class Action(IPlugin):
     """
-    Defines a task to run.
+    Defines an action to run.
+
+    WARNING: Actions may be depricated as objects in future versions
+        if yapsy is removed as the plugin manager.
     """
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def run(self, **kwargs):
+    def run(self, config, **kwargs):
         """
         Takes an undefined set of name arguments.
+
+        Args:
+            config (Config): the config object for locating plugins, settings, etc.
+            kwargs (dict): named parameters that should passed to the action
         """
         raise NotImplementedError(
             'The abstractmethod "run" was not '
-            'implemented in the Task abstract base class'
+            'implemented in the Action abstract base class'
         )
 
 
 class Parser(IPlugin):
     """
-    Handles any modifications to the params subdict before merging
-    the params into the resources.
+    During parsing of manifests Parsers can be used to handles any
+    modifications to the params subdict before merging the params
+    into the resources.
 
     This could be used for dynamic variables like getting the latest
     volume snapshots, external resources, etc.
 
     NOTE: multiple parsers can be run on the paramsdict, so ensure that they
-    are independent of each other.  For example you may want a parser for
+    are independent of each other. For example you may want a parser for
     modifying each dynamic variable.
     """
     __metaclass__ = ABCMeta
@@ -59,6 +65,10 @@ class Parser(IPlugin):
         Takes a dict of the parameters and returns the modified version.
         It optionally takes a config which could contain default input values
         to use.
+
+        Args:
+            paramsdict (dict): the current params dict.
+            config (Config, optional): the config object if the Parser would like to
         """
         raise NotImplementedError(
             'The abstractmethod "run" was not '
@@ -79,6 +89,12 @@ class Storage(IPlugin):
     """
     __metaclass__ = ABCMeta
 
+    def __init__(self):
+        """Summary"""
+        self._logger = logging.getLogger(
+            'shepherd.storage.{}'.format(type(self).__name__)
+        )
+
     @abstractmethod
     def search(self, tags):
         """
@@ -87,6 +103,9 @@ class Storage(IPlugin):
         Search the store for serialized stacks
         that match to those tags. Returning a list of
         the stack names that match.
+
+        Args:
+            tags (dict): tags to use when search for stacks.
         """
         raise NotImplementedError(
             'The abstractmethod "search" was not '
@@ -100,6 +119,9 @@ class Storage(IPlugin):
 
         Search the store for the serialized stack with
         that name.  Returns a single stack dict.
+
+        Args:
+            name (str): the global_name of the stack to load.
         """
         raise NotImplementedError(
             'The abstractmethod "load" was not '
@@ -111,6 +133,9 @@ class Storage(IPlugin):
         """
         Takes a stack dict and stores it
         in the datastore of your choice.
+
+        Args:
+            stack (Stack): dumps the stack into the storage media
         """
         raise NotImplementedError(
             'The abstractmethod "dump" was not '
@@ -125,14 +150,32 @@ class Resource(IPlugin):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, type, provider):
+    def __init__(self, provider):
+        """Summary
+
+        Args:
+            provider (str): the name of the provider the resource is designed
+                to run on.
+
+        Attributes:
+            local_name (str): the name local to the stack.
+            global_name (str): the global name that is unique within the storage and provider.
+            provider (str): the provider of the resource.
+            type (str): the name of the resource type.
+            tags (dict): a dictionary of tags used for looking up resources in shepherd
+                or on the provider.
+            stack (Stack): the stack the resource belongs to.
+        """
         self._local_name = None
         self._global_name = None
         self._provider = provider
-        self._type = type
+        self._type = type(self).__name__
         self._stack = None
         self._available = False
         self._tags = {}
+        self._logger = logging.getLogger(
+            'shepherd.resources.{}.{}'.format(provider, self._type)
+        )
         self._attributes_map = {
             'local_name': '_local_name',
             'global_name': '_global_name',
@@ -179,17 +222,15 @@ class Resource(IPlugin):
         self._stack = value
 
     @classmethod
-    def validate_create(cls, logger):
+    def validate_create(cls):
         """
         A default Resource decorator to remove boilerplate validation
         code for create requests.
         """
         def wrap(func):
             def function(self, *args):
-                logger.info(
-                    'Creating {} {} ...'.format(
-                        type(self).__name__, self._local_name
-                    )
+                self._logger.info(
+                    'Creating %s %s ...', type(self).__name__, self._local_name
                 )
                 resp = True
                 if not self._available:
@@ -197,7 +238,7 @@ class Resource(IPlugin):
                         raise StackError(
                             'Unknown parent stack. Make sure that the stack '
                             'property is set prior to calling create',
-                            name=__name__
+                            logger=self._logger
                         )
 
                     passed = func(self, *args)
@@ -206,9 +247,8 @@ class Resource(IPlugin):
                     else:
                         resp = self._available
                 else:
-                    logger.debug(
-                        '{} {} is already available'
-                        .format(type(self).__name__, self._local_name)
+                    self._logger.debug(
+                        '%s %s is already available', type(self).__name__, self._local_name
                     )
 
                 return resp
@@ -216,17 +256,15 @@ class Resource(IPlugin):
         return wrap
 
     @classmethod
-    def validate_destroy(cls, logger):
+    def validate_destroy(cls):
         """
         A default Resource decorator to remove boilerplate validation
         code for destroy requests.
         """
         def wrap(func):
             def function(self, *args):
-                logger.info(
-                    'Destroying {} {} ...'.format(
-                        type(self).__name__, self._local_name
-                    )
+                self._logger.info(
+                    'Destroying %s %s ...', type(self).__name__, self._local_name
                 )
                 resp = True
                 if self._available:
@@ -234,7 +272,7 @@ class Resource(IPlugin):
                         raise StackError(
                             'Unknown parent stack. Make sure that the stack '
                             'property is set prior to calling create',
-                            name=__name__
+                            logger=self._logger
                         )
 
                     passed = func(self, *args)
@@ -243,20 +281,39 @@ class Resource(IPlugin):
                     else:
                         resp = not self._available
                 else:
-                    logger.debug(
-                        '{} {} is already unavailable'
-                        .format(type(self).__name__, self._local_name)
+                    self._logger.debug(
+                        '%s %s is already unavailable', type(self).__name__, self._local_name
                     )
                 return resp
             return function
         return wrap
 
     def deserialize(self, data):
+        """
+        Deserializes the keys and values in a dictionary into attributes
+        for self.
+
+        Notes:
+            The mapping of keys to attributes is done using ``self._attributes_map``.
+
+        Args:
+            data (dict): a dictionary of the attributes to deserialize.
+        """
         setattrs(self, self._attributes_map, data)
-        logger.debug('Deserialized {} {}'.format(type(self).__name__, self._local_name))
+        self._logger.debug(
+            'Deserialized %s %s', type(self).__name__, self._local_name
+        )
 
     def serialize(self):
-        logger.debug('Serializing {} {}'.format(type(self).__name__, self._local_name))
+        """
+        Serializes the attributes to a dict using ``self._attributes_map``.
+
+        Returns:
+            dict: the serialized dictionary of the attributes.
+        """
+        self._logger.debug(
+            'Serializing %s %s', type(self).__name__, self._local_name
+        )
         return getattrs(self, self._attributes_map)
 
     @abstractmethod
@@ -281,6 +338,9 @@ class Resource(IPlugin):
     def get_dependencies(self):
         """
         Generates a list of dependencies for the resource.
+
+        Returns:
+            list: of other resource names this resource depends on.
         """
         raise NotImplementedError(
             'The abstractmethod "get_dependencies" was '
@@ -288,13 +348,16 @@ class Resource(IPlugin):
         )
 
 
-def is_plugin(obj):
+def is_plugin(cls):
     """
     Accepts a class and returns a boolean as to whether the class is a valid
     plugin.
 
     Kind of a hack, but it dynamically scans the plugins file for all valid
     shepherd plugin abstract base classes.
+
+    Args:
+        cls (class): the class that may be a plugin.
     """
     mod = sys.modules[__name__]
 
@@ -302,11 +365,9 @@ def is_plugin(obj):
         # Kind of ugly if statem making sure we don't count IPlugin
         # or the abs plugins before checking if it subclasses them.
         if (plugin.__name__ != 'IPlugin' and
-                plugin.__name__ != obj.__name__ and
-                issubclass(obj, IPlugin) and
-                issubclass(obj, plugin)):
-            # print(plugin.__name__)
-            # print(obj.__name__)
+                plugin.__name__ != cls.__name__ and
+                issubclass(cls, IPlugin) and
+                issubclass(cls, plugin)):
             return True
 
     return False

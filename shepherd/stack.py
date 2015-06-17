@@ -25,12 +25,30 @@ class Stack(object):
     The Stack object maintains and manipulates the list of cloud
     resources that need to be provisioned.
     """
-    def __init__(self, name, config_name):
+    def __init__(self, name, config):
+        """
+        Initializes the Stack.
+
+        Args:
+            name (str): the local stack name or suffix
+            config (Config): a config object for grabbing loaded
+                Resource & Storage plugins.
+
+        Attributes:
+            global_name (str): A global/unique name for the stack which
+                by default is defined by the following tags ``{stack_name}_{stack_creation}``
+            settings (dict): the settings from the config obj for reference later on when
+                restoring a stack from storage rather than making a new one.
+            tags (dict): tags for easier searching for stacks from storage.
+                Defaults:
+                1. 'stack_name': name supplied
+                2. 'stack_creation': timestamp of initialization
+        """
         self._name_fmt = _DEFAULT_NAME_FMT
         self._local_name = name
         self._global_name = None
-        self._config = Config.get(config_name)
-        self._config_name = config_name
+        self._config = config
+        self._config_name = config.name
         self._settings = self._config.settings
         self._resources = []
         self._tags = {
@@ -56,7 +74,11 @@ class Stack(object):
         )
 
     def __str__(self):
-        return self.name
+        return self._local_name
+
+    @property
+    def local_name(self):
+        return self._local_name
 
     @property
     def global_name(self):
@@ -71,19 +93,23 @@ class Stack(object):
         return self._tags
 
     @classmethod
-    def make(cls, name, config_name=""):
+    def make(cls, name, config):
         """
         Handles creating a stack instance.
+
+        Args:
+            name (str): the stack name
+            config (Config): the Config object
         """
         # Build the Manifest which handles the
         # parsing, loading, etc of the template files.
-        manifest = Manifest(config_name)
+        manifest = Manifest(config)
         manifest.load()
         manifest.parse()
         manifest.map()
 
         # Create our new Stack object.
-        stack = Stack(name, config_name)
+        stack = Stack(name, config)
 
         # Finally, we call the stacks deserialize method
         # giving it just the finished resources dict from
@@ -95,15 +121,22 @@ class Stack(object):
         return stack
 
     @classmethod
-    def restore(cls, name, config_name=""):
+    def restore(cls, name, config):
         """
         Handles restoring a stack with the given name
         from the storage plugin specified in
         config.settings
-        """
-        config = Config.get(config_name)
 
-        logger.debug('Stack.restore: Storage setting={}'.format(config.settings.storage))
+        Args:
+            name (str): the stack name to look for in the storage plugin
+            config (the): the config object used to find the storage
+                plugin to load the stack from.
+
+        Raises:
+            PluginError: if the storage plugin listed in the config.settings
+                can't be found.
+        """
+        logger.debug('Stack.restore: Storage setting=%s', config.settings.storage)
         store_name = config.settings.storage.name
         # Get storage plugin
         stores = config.get_plugins(
@@ -119,7 +152,7 @@ class Stack(object):
                 raise StackError(
                     'Could not find stack {} in store {}'
                     .format(name, store_name),
-                    name=__name__
+                    logger=logger
                 )
 
             stack = Stack.deserialize(serialized)
@@ -134,8 +167,12 @@ class Stack(object):
         """
         Saves this stack to the storage plugin specified
         in config.settings.
+
+        Raises:
+            PluginError: if the storage plugin listed in the config.settings
+                can't be found.
         """
-        logger.debug('Stack.save: Storage settings={}'.format(self._config.settings.storage))
+        logger.debug('Stack.save: Storage settings=%s', self._config.settings.storage)
         store_name = self._config.settings.storage.name
         # Get the storage plugin
         stores = self._config.get_plugins(
@@ -153,14 +190,41 @@ class Stack(object):
 
     @classmethod
     def deserialize(cls, data):
-        Config.make(settings=data['settings'], name=data['config_name'])
-        stack = Stack(data['local_name'], data['config_name'])
+        """
+        Builds a stack from the data dictionary.
+
+        Details:
+            * Uses the settings and config_name values to create a Config.
+            * Uses the local_name and the config to create a new Stack instance.
+            * sets the global_name, tags and resource list (by deserializing the resources)
+
+        Args:
+            data (dict): a dictionary holding the state of a stack
+
+        Returns:
+            TYPE: Description
+        """
+        config = Config.make(settings=data['settings'], name=data['config_name'])
+        stack = Stack(data['local_name'], config)
         stack._global_name = data['global_name']
         stack._tags = data['tags']
         stack.deserialize_resources(data['resources'])
         return stack
 
     def serialize(self):
+        """
+        Serializes a stack by writing the following attributes to a dict.
+
+        1. local_name
+        2. global_name
+        3. config_name
+        4. settings
+        5. tags
+        6. resources (serialized)
+
+        Returns:
+            dict: containaining the stack stack state
+        """
         result = {
             'local_name': self._local_name,
             'global_name': self._global_name,
@@ -176,6 +240,20 @@ class Stack(object):
         return result
 
     def get_global_resource_name(self, name):
+        """
+        Generates the global name for a resources, which by defaults is
+            ``{resource_name}_{stack_name}_{stack_creation}``
+
+        Note:
+            This global name is truncated to be only 64 characters long due some
+            restrictions with AWS.
+
+        Args:
+            name (str): local name of the resource
+
+        Returns:
+            str: the global name
+        """
         global_name = "{}_{}".format(name, self._global_name)
         global_name = global_name[0:63]  # some things can only be 64 long...
 
@@ -189,12 +267,18 @@ class Stack(object):
         NOTE: if you somehow manage to change the object name
         to no longer be unique this method will only return the first
         one it finds.
+
+        Args:
+            local_name (str): local name of the resource to search by
+
+        Returns:
+            the resource or None
         """
         for resource in self._resources:
             if resource.local_name == local_name:
-                    return resource
-        else:
-            return None
+                return resource
+
+        return None
 
     def get_resource_by_type(self, resource_type):
         """
@@ -202,8 +286,15 @@ class Stack(object):
         and returns a list of all resources that match that type.  The type is
         determined by either the name of the resources class or by the resource
         type attribute if one exists.
+
+        Args:
+            resource_type (str): the name of the resource type you like to get
+                eg: all Instances
+
+        Returns:
+            list: of the resource of that type.
         """
-        logger.info('Looking up resources of type {}'.format(resource_type))
+        logger.info('Looking up resources of type %s', resource_type)
         resources = []
         for resource in self._resources:
             if type(resource).__name__ == resource_type:
@@ -218,8 +309,14 @@ class Stack(object):
         """
         Returns a list of resources where the resource tags contains the same
         key values as the tags provided.
+
+        Args:
+            tags (dict): of tags to search by.
+
+        Returns:
+            list: of resource with the specified tags.
         """
-        logger.info('Looking up resources with tags {}'.format(str(tags)))
+        logger.info('Looking up resources with tags %s', str(tags))
         return [
             resource for resource in self._resources if dict_contains(
                 resource.tags, tags
@@ -232,6 +329,9 @@ class Stack(object):
           - saving the stack
           - logging errors
           - etc
+
+        Args:
+            function (function): the function to wrap
         """
         try:
             function()
@@ -243,7 +343,16 @@ class Stack(object):
         """
         Handles building a list of create tasks and
         running them with dynamic dependency handling via
-        run_tasks.
+        run_tasks. Roles back changes in case of failure.
+        ke: if provisioning fails any already provisioned resource
+        are deprovision automatically.
+
+        Args:
+            resources (list, optional): a list of the subset of resources in the stack
+                to provision. Defaults to all of them.
+
+        Raises:
+            StackError: if not all resources are successfully provisioned.
         """
         logger.debug('Building create tasks list')
 
@@ -257,13 +366,12 @@ class Stack(object):
         tasks = []
         for resource in resources:
             logger.info(
-                'Stack.provision_resources - {} marked for creation'.format(
-                    resource.local_name
-                )
+                'Stack.provision_resources - %s marked for creation',
+                resource.local_name
             )
             logger.debug(
-                'Stack.provision_resources - Dependencies: {}'
-                .format(resource.get_dependencies())
+                'Stack.provision_resources - Dependencies: %s',
+                resource.get_dependencies()
             )
 
             tasks.append(
@@ -292,6 +400,13 @@ class Stack(object):
 
         NOTE: We are also responsible for inverting the
         dependency cases to the standard creation dependencies.
+
+        Args:
+            resources (list, optional): a list of the subset of resources in the stack
+                to deprovision. Defaults to all of them.
+
+        Raises:
+            StackError: if not all resources are successfully deprovisioned.
         """
         logger.debug('Building destroy tasks list')
 
@@ -315,13 +430,12 @@ class Stack(object):
         tasks = []
         for resource in resources:
             logger.info(
-                'Stack.deprovision_resources - {} marked for deletion'.format(
-                    resource.local_name
-                )
+                'Stack.deprovision_resources - %s marked for deletion',
+                resource.local_name
             )
             logger.debug(
-                'Stack.deprovision_resources - Dependencies: {}'
-                .format(inverse_dependencies[resource.local_name])
+                'Stack.deprovision_resources - Dependencies: %s',
+                inverse_dependencies[resource.local_name]
             )
 
             tasks.append(
@@ -348,10 +462,18 @@ class Stack(object):
         """
         Given a list or resource dicts we:
 
-        1) loop over them
-        2) extract the resource plugin name from the 'Type'
-        3) get the plugin and deserialize it from the dict
-        4) add the deserialized resource to the list of resources.
+        1. loop over them
+        2. extract the resource plugin name from the 'Type'
+        3. get the plugin and deserialize it from the dict
+        4. add the deserialized resource to the list of resources.
+
+        Args:
+            resource_list (list): list of dictionaries which are to be
+                loaded into resource attributes
+
+        Raises:
+            PluginError: if no Resources have been loaded or if a particular
+                Resource type specified in each dict doesn't exist.
         """
         for rsrc_dict in resource_list:
             # Get the resource plugin and deserialize it with the dict

@@ -1,0 +1,4 @@
+---
+# Just install an nginx role to test that the requirements
+# will be handled in shepherd.
+#- src: https://github.com/bennojoy/nginx

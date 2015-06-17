@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import boto
-import logging
 
 from boto.ec2.blockdevicemapping import BlockDeviceMapping
 from boto.ec2.blockdevicemapping import BlockDeviceType
@@ -17,8 +16,6 @@ SPOT_REQUEST_ACTIVE = 'active'
 SPOT_REQUEST_FULFILLED = 'fulfilled'
 INST_RUNNING_STATE = 'running'
 INST_REACHABLE_STATE = 'passed'
-
-logger = logging.getLogger(__name__)
 
 
 def get_block_device_mapping():
@@ -43,7 +40,7 @@ def get_block_device_mapping():
 
 class Instance(Resource):
     def __init__(self):
-        super(Instance, self).__init__('Instance', 'aws')
+        super(Instance, self).__init__('aws')
         self._availability_zone = None
         self._image_id = None
         self._instance_type = None
@@ -56,6 +53,7 @@ class Instance(Resource):
         self._instance_id = None
         self._security_group_ids = []
         self._spot_instance_request = None
+        self._ip = None
         self._reservation = None
         self._block_device_map = get_block_device_mapping()
         self._terminated = True
@@ -93,20 +91,24 @@ class Instance(Resource):
 
         return deps
 
-    @Resource.validate_create(logging)
+    @property
+    def ip(self):
+        return self._ip
+
+    @Resource.validate_create()
     def create(self):
         """
         Handles creating spot or on demand instances.
 
-        INFO - task order is:
-            1) get_security_group_ids
-            2) type_specific_tasks: request_demand or request_spot and check_spot
+        Info: task order is:
+            1. get_security_group_ids
+            2. type_specific_tasks: request_demand or request_spot and check_spot
                 (last task should labelled 'get_instance_id')
-            3) check_running
-            4) create_tags
-            5) attach_volumes
-            6) check_initialized
-            7) ssh_accessible
+            3. check_running
+            4. create_tags
+            5. attach_volumes
+            6. check_initialized
+            7. ssh_accessible
         """
         common_tasks = (
             create_task('get_security_group_ids', self._get_security_group_ids),
@@ -144,15 +146,15 @@ class Instance(Resource):
         results = run_tasks(tasks)
 
         self._available = tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to provision instance {}'.format(self._local_name)
         )
 
-    @Resource.validate_destroy(logging)
+    @Resource.validate_destroy()
     def destroy(self):
         conn = boto.connect_ec2()
         if self._spot_instance_request:
-            conn.cancel_spot_instance_requests(self.sir)
+            conn.cancel_spot_instance_requests(self._spot_instance_request)
             self._spot_instance_request = None
 
         tasks = (
@@ -166,7 +168,7 @@ class Instance(Resource):
         results = run_tasks(tasks)
 
         return tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to de provision instance {}'.format(self._local_name)
         )
 
@@ -182,9 +184,9 @@ class Instance(Resource):
                 # volume = get_volume(volume_id)
                 mountpoint = volume_dict['Device']
 
-                logger.debug(
-                    'Attaching volume {} to {} an {}'.
-                    format(volume_id, self._instance_id, mountpoint)
+                self._logger.debug(
+                    'Attaching volume %s to %s an %s',
+                    volume_id, self._instance_id, mountpoint
                 )
 
                 conn.attach_volume(
@@ -195,7 +197,7 @@ class Instance(Resource):
         return True
 
     def _request_demand(self):
-        logger.debug('Requesting demand instance {}'.format(self._local_name))
+        self._logger.debug('Requesting demand instance %s', self._local_name)
         conn = boto.connect_ec2()
         reservation = conn.run_instances(
             image_id=self._image_id,
@@ -213,7 +215,7 @@ class Instance(Resource):
         return True
 
     def _request_spot(self):
-        logger.debug('Requesting spot instance {}'.format(self._local_name))
+        self._logger.debug('Requesting spot instance %s', self._local_name)
         conn = boto.connect_ec2()
         self._spot_instance_request = conn.request_spot_instances(
             image_id=self._image_id,
@@ -232,7 +234,7 @@ class Instance(Resource):
         conn = boto.connect_ec2()
         if self._instance_id:
             if not self._terminated:
-                logger.debug('Terminating instance {}'.format(self._local_name))
+                self._logger.debug('Terminating instance %s', self._local_name)
                 conn.terminate_instances(
                     instance_ids=[self._instance_id]
                 )
@@ -241,7 +243,7 @@ class Instance(Resource):
         return self._terminated
 
     def _check_running(self):
-        logger.debug('Checking if instance {} is running'.format(self._local_name))
+        self._logger.debug('Checking if instance %s is running', self._local_name)
         resp = False
         assert self._instance_id
         conn = boto.connect_ec2()
@@ -252,12 +254,13 @@ class Instance(Resource):
         instance = instances[0]
         if instance.state == INST_RUNNING_STATE:
             self._terminated = False
+            self._ip = instance.ip_address
             resp = True
 
         return resp
 
     def _check_reachable(self):
-        logger.debug('Checking if instance {} is reachable'.format(self._local_name))
+        self._logger.debug('Checking if instance %s is reachable', self._local_name)
         resp = False
         assert self._instance_id
         conn = boto.connect_ec2()
@@ -269,9 +272,9 @@ class Instance(Resource):
             if status[0].system_status.details['reachability'] == INST_REACHABLE_STATE:
                 resp = True
             else:
-                logger.debug(
-                    'Reachability Status = {}'
-                    .format(status[0].system_status.details['reachability'])
+                self._logger.debug(
+                    'Reachability Status = %s',
+                    status[0].system_status.details['reachability']
                 )
 
         return resp
@@ -291,9 +294,9 @@ class Instance(Resource):
         return not self._available
 
     def _check_spot(self):
-        logger.debug(
-            'Checking if spot request {} is fulfilled'
-            .format(self._spot_instance_request.id)
+        self._logger.debug(
+            'Checking if spot request %s is fulfilled',
+            self._spot_instance_request.id
         )
         resp = False
         conn = boto.connect_ec2()
@@ -313,7 +316,7 @@ class Instance(Resource):
 
     def _create_tags(self):
         conn = boto.connect_ec2()
-        logger.debug('Creating tags for instance {}'.format(self._local_name))
+        self._logger.debug('Creating tags for instance %s', self._local_name)
         self._tags.update(self.stack.tags)
         conn.create_tags([self._instance_id], self._tags)
         return True

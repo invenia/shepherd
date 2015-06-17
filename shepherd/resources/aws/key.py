@@ -9,7 +9,6 @@ Handles creation of IAM access key resources on aws.
 from __future__ import print_function
 
 import boto
-import logging
 
 from arbiter import create_task
 from arbiter.sync import run_tasks
@@ -18,8 +17,6 @@ from shepherd.common.plugins import Resource
 from shepherd.common.utils import pascal_to_underscore, tasks_passed
 from shepherd.resources.aws import get_access_key
 
-logger = logging.getLogger(__name__)
-
 
 class AccessKey(Resource):
     """
@@ -27,7 +24,7 @@ class AccessKey(Resource):
     to create and destroy AWS IAM access keys for IAM users.
     """
     def __init__(self):
-        super(AccessKey, self).__init__('AccessKey', 'aws')
+        super(AccessKey, self).__init__('aws')
         self._user_name = None
         self._access_key_id = None
         self._attributes_map.update({
@@ -50,14 +47,14 @@ class AccessKey(Resource):
         if user:
             deps.append(user)
 
-        logger.debug(
-            'Generating a dependency list for IAM key creation: {}'
-            .format(', '.join((dep.local_name for dep in deps)))
+        self._logger.debug(
+            'Generating a dependency list for IAM key creation: %s',
+            ', '.join((dep.local_name for dep in deps))
         )
 
         return deps
 
-    @Resource.validate_create(logger)
+    @Resource.validate_create()
     def create(self):
         # Only try and create the accesskey if we haven't tried to
         # create one before.
@@ -72,11 +69,11 @@ class AccessKey(Resource):
         )
         results = run_tasks(tasks)
         return tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to provision key {}'.format(self._local_name)
         )
 
-    @Resource.validate_destroy(logger)
+    @Resource.validate_destroy()
     def destroy(self):
         tasks = (
             create_task('delete', self._delete_key),
@@ -89,16 +86,16 @@ class AccessKey(Resource):
         results = run_tasks(tasks)
 
         return tasks_passed(
-            results, logger,
+            results, self._logger,
             msg='Failed to deprovision key {}'.format(self._local_name)
         )
 
     def _create_key(self):
         """ Handles the creation request """
         if self._access_key_id is None:
-            logger.debug(
-                'Requesting IAM Access Key for user {}...'
-                .format(self._user_name)
+            self._logger.debug(
+                'Requesting IAM Access Key for user %s...',
+                self._user_name
             )
 
             # Set our global_name which will be the same as the iamuser
@@ -116,9 +113,9 @@ class AccessKey(Resource):
 
     def _delete_key(self):
         """ Handles the deletion request """
-        logger.debug(
-            'Requesting deletion of IAM Access Key ({})...'
-            .format(self._access_key_id)
+        self._logger.debug(
+            'Requesting deletion of IAM Access Key (%s)...',
+            self._access_key_id
         )
         conn = boto.connect_iam()
 
@@ -132,9 +129,8 @@ class AccessKey(Resource):
     def _check_created(self):
         """ Performs a check that the access key is available """
         if get_access_key(self._global_name, self._access_key_id):
-            logger.debug(
-                'AccessKey {} is now available.'
-                .format(self._local_name)
+            self._logger.debug(
+                'AccessKey %s is now available.', self._local_name
             )
             self._available = True
 
@@ -143,7 +139,7 @@ class AccessKey(Resource):
     def _check_deleted(self):
         """ Performs a check to ensure that the key was successfully deleted """
         if not get_access_key(self._global_name, self._access_key_id):
-            logger.debug('AccessKey {} deleted'.format(self._local_name))
+            self._logger.debug('AccessKey %s deleted', self._local_name)
             self._access_key_id = None
             self._available = False
 
