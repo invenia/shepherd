@@ -255,11 +255,22 @@ class Instance(Resource):
         if self._instance_id:
             if not self._terminated:
                 self._logger.debug('Terminating instance %s', self._local_name)
-                conn.terminate_instances(
-                    instance_ids=[self._instance_id]
-                )
-                self._terminated = True
+                allowed_error = "The instance ID '{}' does not exist".format(self._instance_id)
+                try:
+                    conn.terminate_instances(
+                        instance_ids=[self._instance_id]
+                    )
+                except EC2ResponseError as exc:
+                    if allowed_error in exc.body:
+                        self._logger.warn(
+                            '%s (%s) does not exist and probably has already '
+                            'been destroyed.', self._local_name, self._instance_id
+                        )
+                        self._instance_id = None
+                    else:
+                        raise
 
+        self._terminated = True
         return self._terminated
 
     def _check_running(self):
@@ -310,6 +321,8 @@ class Instance(Resource):
             if instance.state == 'terminated':
                 self._available = False
                 self._instance_id = None
+        else:
+            self._available = False
 
         return not self._available
 
