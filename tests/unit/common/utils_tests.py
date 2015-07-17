@@ -20,3 +20,5 @@ def test_get():
     mydict = {'foo': 2, 'Foo': 3}
     assert_raises(KeyError, get, mydict, keys)
     assert_equals(get(mydict, keys, mutually_exclusive=False), 2)
+
+    assert_raises(KeyError, get, mydict, ['car', 'zar'])

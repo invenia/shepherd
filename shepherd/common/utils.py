@@ -241,4 +241,7 @@ def get(dictionary, keys, mutually_exclusive=True):
                 in the provided dict.".format(result, key)
             )
 
+    if not result:
+        raise KeyError('None of the keys {} matched'.format(keys))
+
     return result
