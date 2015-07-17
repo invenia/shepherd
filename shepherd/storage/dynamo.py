@@ -49,9 +49,9 @@ def dynamize(stack):
         elif isinstance(stack[key], list):
             stack[key] = json.dumps(list(stack[key]))
         elif stack[key] is None:
-            stack["key"] = "None"
+            stack[key] = "None"
         elif stack[key] == "":
-            stack['key'] = "N/A"
+            stack[key] = "N/A"
 
 
 def dedynamize(stack):
