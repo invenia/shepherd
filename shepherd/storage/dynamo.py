@@ -11,14 +11,20 @@ from __future__ import print_function
 import time
 import boto
 import json
+import logging
 
 from attrdict import AttrDict
 from boto.dynamodb.condition import EQ
-from boto.dynamodb.exceptions import DynamoDBResponseError, DynamoDBKeyNotFoundError
+from boto.dynamodb.exceptions import (
+    DynamoDBResponseError,
+    DynamoDBKeyNotFoundError,
+    DynamoDBValidationError
+)
 
 from shepherd.common.utils import get_logger
 from shepherd.common.plugins import Storage
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_SETTINGS = AttrDict({
     'table_name': 'stacks',
@@ -40,9 +46,12 @@ def dynamize(stack):
         if isinstance(stack[key], dict) or isinstance(stack[key], AttrDict):
             stack[key] = json.dumps(dict(stack[key]))
             get_logger(stack).debug('dynamize - key=%s, value=%s\n', key, stack[key])
-
         elif isinstance(stack[key], list):
             stack[key] = json.dumps(list(stack[key]))
+        elif stack[key] is None:
+            stack["key"] = "None"
+        elif stack[key] == "":
+            stack['key'] = "N/A"
 
 
 def dedynamize(stack):
@@ -62,9 +71,14 @@ def dedynamize(stack):
 
     for key in stack:
         try:
-            stack[key] = json.loads(stack[key])
-        except(TypeError, ValueError):
-            pass
+            if stack[key] == "None":
+                stack[key] = None
+            elif stack[key] == "N/A":
+                stack[key] = ""
+            else:
+                stack[key] = json.loads(stack[key])
+        except(TypeError, ValueError) as exc:
+            logger.exception(exc)
 
 
 class DynamoStorage(Storage):
@@ -200,7 +214,10 @@ class DynamoStorage(Storage):
 
         if item is not None:
             self._logger.debug('Inserting new entry %s', entry[self._settings.hash_key_name])
-            conn.put_item(item)
+            try:
+                conn.put_item(item)
+            except DynamoDBValidationError:
+                self._logger.debug('Invalid dynamodb item.\n %s', entry)
 
     def delete(self, name):
         item = None
