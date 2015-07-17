@@ -71,6 +71,20 @@ class TestStack(TestCase):
                 'ip_protocol': 'tcp',
                 'from_port': '5000',
                 'to_port': '5000',
+            },
+            {
+                'local_name': 'TestInstance',
+                'type': 'Instance',
+                'provider': 'aws',
+                'availability_zone': 'a',
+                'image_id': 'ami-1234abcd',
+                'instance_type': 't1.micro',
+                'security_groups': ['TestSecurityGroup'],
+                'key_name': 'test_keypair',
+                'volumes': [{
+                    'Device': '/dev/sdh',
+                    'VolumeId': 'TestVolume'
+                }]
             }
         ]
 
@@ -149,6 +163,17 @@ class TestStack(TestCase):
             {'foo': 'bar'}
         )
         self.assertEquals(len(resources), 0)
+
+    def test_get_inverse_dependencies(self):
+        self.stack = Stack('test_stack', self.config)
+        self.stack.deserialize_resources(self.resources)
+        inverse_deps = self.stack._get_inverse_dependencies(self.stack._resources)
+        print(inverse_deps)
+
+        self.assertTrue('TestInstance' in inverse_deps['TestSecurityGroup'])
+        self.assertTrue('TestSecurityGroupIngress' in inverse_deps['TestSecurityGroup'])
+        self.assertTrue('TestSecurityGroupIngress' in inverse_deps['TestSrcSecurityGroup'])
+        self.assertTrue('TestInstance' in inverse_deps['TestVolume'])
 
     @mock_iam()
     @mock_ec2()

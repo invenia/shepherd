@@ -417,16 +417,7 @@ class Stack(object):
             )
             resources = self._resources
 
-        inverse_dependencies = {}
-        for resource in resources:
-            inverse_dependencies[resource.local_name] = []
-
-            for dep in resource.get_dependencies():
-                if dep.local_name not in inverse_dependencies:
-                    inverse_dependencies[dep.local_name] = []
-
-                inverse_dependencies[dep.local_name].append(resource.local_name)
-
+        inverse_dependencies = self._get_inverse_dependencies(resources)
         tasks = []
         for resource in resources:
             logger.info(
@@ -511,3 +502,28 @@ class Stack(object):
                         'Failed to locate resource named {} for provider {}'
                         .format(classname, rsrc_dict['provider'].lower())
                     )
+
+    def _get_inverse_dependencies(self, resources):
+        """
+        Goes through the list of resources and builds up a dictionary of the reverse
+        dependencies.
+
+        Args:
+            resources (list): the of resources to use.
+
+        Returns:
+            inverse_dependencies (dict): a dictionary of the inverse dependencies
+                where the key is the name of the local_name of the resource and
+                the values are a list of the inverse dependencies for that resource.
+        """
+        inverse_dependencies = {}
+        for resource in resources:
+            inverse_dependencies[resource.local_name] = []
+
+            for dep in resource.get_dependencies():
+                if dep.local_name not in inverse_dependencies:
+                    inverse_dependencies[dep.local_name] = []
+
+                inverse_dependencies[dep.local_name].append(resource.local_name)
+
+        return inverse_dependencies
