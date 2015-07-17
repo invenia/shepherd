@@ -4,12 +4,13 @@ import boto
 
 from boto.ec2.blockdevicemapping import BlockDeviceMapping
 from boto.ec2.blockdevicemapping import BlockDeviceType
+from boto.exception import EC2ResponseError
 
 from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import tasks_passed, get
+from shepherd.common.utils import tasks_passed, get, dict_contains
 from shepherd.resources.aws import get_security_group
 
 SPOT_REQUEST_ACTIVE = 'active'
@@ -57,6 +58,7 @@ class Instance(Resource):
         self._reservation = None
         self._block_device_map = get_block_device_mapping()
         self._terminated = True
+        self._attached_volumes = []
 
         self._attributes_map.update({
             'availability_zone': '_availability_zone',
@@ -118,9 +120,9 @@ class Instance(Resource):
                 delay=self.stack.settings['delay']
             ),
             create_task('create_tags', self._create_tags, ('check_running',)),
-            create_task('attach_volumes', self.attach_volumes, ('check_running',)),
+            create_task('attach_volumes', self.attach_volumes, ('create_tags',)),
             create_task(
-                'check_initialized', self._check_reachable, ('check_running',),
+                'check_initialized', self._check_reachable, ('create_tags',),
                 retries=self.stack.settings['retries'],
                 delay=self.stack.settings['delay']
             ),
@@ -174,6 +176,8 @@ class Instance(Resource):
 
     # Might want to organize this and create tags better
     def attach_volumes(self):
+        resp = False
+
         if self._instance_id:
             conn = boto.connect_ec2()
 
@@ -181,20 +185,28 @@ class Instance(Resource):
                 volume_id = self._get_volume_id(
                     get(volume_dict, ['VolumeId', 'volume_id'])
                 )
-                # volume = get_volume(volume_id)
-                mountpoint = get(volume_dict, ['Device', 'device'])
+                if volume_id not in self._attached_volumes:
+                    # volume = get_volume(volume_id)
+                    mountpoint = get(volume_dict, ['Device', 'device'])
 
-                self._logger.debug(
-                    'Attaching volume %s to %s an %s',
-                    volume_id, self._instance_id, mountpoint
-                )
+                    self._logger.debug(
+                        'Attaching volume %s to %s an %s',
+                        volume_id, self._instance_id, mountpoint
+                    )
 
-                conn.attach_volume(
-                    volume_id=volume_id,
-                    instance_id=self._instance_id,
-                    device=mountpoint
-                )
-        return True
+                    try:
+                        conn.attach_volume(
+                            volume_id=volume_id,
+                            instance_id=self._instance_id,
+                            device=mountpoint
+                        )
+                        self._attached_volumes.append(volume_id)
+                    except EC2ResponseError:
+                        return resp
+
+            resp = True
+
+        return resp
 
     def _request_demand(self):
         self._logger.debug('Requesting demand instance %s', self._local_name)
@@ -317,9 +329,14 @@ class Instance(Resource):
     def _create_tags(self):
         conn = boto.connect_ec2()
         self._logger.debug('Creating tags for instance %s', self._local_name)
-        self._tags.update(self.stack.tags)
-        conn.create_tags([self._instance_id], self._tags)
-        return True
+        if not dict_contains(self._tags, self.stack.tags):
+            self._tags.update(self.stack.tags)
+
+        try:
+            conn.create_tags([self._instance_id], self._tags)
+            return True
+        except EC2ResponseError:
+            return False
 
     def _get_security_group_ids(self):
         if not self._security_group_ids:
