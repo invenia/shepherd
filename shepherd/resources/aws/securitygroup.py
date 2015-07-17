@@ -6,6 +6,7 @@ Handles creation and destruction of security groups
 from __future__ import print_function
 
 import boto
+from boto.exception import EC2ResponseError
 
 from arbiter import create_task
 from arbiter.sync import run_tasks
@@ -57,7 +58,20 @@ class SecurityGroup(Resource):
         conn = boto.connect_ec2()
         logger = self._logger
         if self._group_id is not None and get_security_group(group_id=self._group_id):
-            resp = conn.delete_security_group(group_id=self._group_id)
+            allowed_error = "The security group '{}' does not exist".format(self._group_id)
+            resp = None
+            try:
+                resp = conn.delete_security_group(group_id=self._group_id)
+
+            except EC2ResponseError as exc:
+                if allowed_error in exc.body:
+                    self._logger.warn(
+                        '%s (%s) does not exist and probably has already '
+                        'been destroyed.', self._local_name, self._group_id
+                    )
+                    resp = True
+                else:
+                    raise
 
             if resp:
                 logger.info(
