@@ -220,3 +220,25 @@ def configure_logging(verbosity, logformat=LOGFORMAT):
                 logging.getLogger().setLevel(logging.DEBUG)
 
             logging.getLogger('shepherd').setLevel(logging.DEBUG)
+
+
+def get(dictionary, keys, mutually_exclusive=True):
+    """
+    Allows getting a value from a dict using multiple possible keys.
+
+    Args:
+        dict (dict): the dict to get the return value from.
+        keys (list): a list of keys to search for.
+        mutually_exclusive (bool): whether or not to assert that the keys are mutually exclusive.
+    """
+    result = None
+    for key in keys:
+        if not result and key in dictionary:
+            result = dictionary[key]
+        elif result and key in dictionary and mutually_exclusive:
+            raise KeyError(
+                "Key {} and {} are not mutually exclusive \
+                in the provided dict.".format(result, key)
+            )
+
+    return result

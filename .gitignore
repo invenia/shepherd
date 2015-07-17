@@ -1,5 +1,6 @@
 *.pyc
 *.sw*
+.DS_Store
 bin/build/
 build/
 dist/

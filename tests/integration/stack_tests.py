@@ -57,7 +57,7 @@ class TestStack(TestCase):
                 'group_description': 'My test security group',
             },
             {
-                'local_name': 'TestSecuritySrcSecurityGroup',
+                'local_name': 'TestSrcSecurityGroup',
                 'type': 'SecurityGroup',
                 'provider': 'aws',
                 'group_description': 'My test source security group',

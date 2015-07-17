@@ -162,7 +162,7 @@ class Ansible(Action):
                 else:
                     path = kwargs["path"]
 
-                os.symlink(os.path.realpath(path), self.path,)
+                os.symlink(os.path.realpath(path), self.path)
             else:
                 raise ValueError(
                     'The path value provided (%s) does not exists',

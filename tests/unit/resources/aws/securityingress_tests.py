@@ -72,6 +72,29 @@ class TestSecurityGroup(TestCase):
         )
 
     @mock_ec2
+    def test_set_group_names(self):
+        security_group_ingress = SecurityGroupIngress()
+        security_group_ingress.deserialize(self.test_security_group_ingress)
+        security_group_ingress.stack = self.mack
+
+        conn = boto.connect_ec2()
+        conn.create_security_group(
+            security_group_ingress._group_name,
+            security_group_ingress._group_name
+        )
+        conn.create_security_group(
+            security_group_ingress._src_security_group_name,
+            security_group_ingress._src_security_group_name
+        )
+
+        self.assertIsNone(security_group_ingress._group_id)
+        self.assertIsNone(security_group_ingress._src_group_id)
+
+        security_group_ingress._set_group_names()
+        self.assertTrue(str(security_group_ingress._group_id).startswith('sg'))
+        self.assertTrue(str(security_group_ingress._src_group_id).startswith(('sg')))
+
+    @mock_ec2
     def test_create(self):
         security_group_ingress = SecurityGroupIngress()
         security_group_ingress.deserialize(self.test_security_group_ingress)

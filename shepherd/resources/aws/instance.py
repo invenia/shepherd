@@ -9,7 +9,7 @@ from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
-from shepherd.common.utils import tasks_passed
+from shepherd.common.utils import tasks_passed, get
 from shepherd.resources.aws import get_security_group
 
 SPOT_REQUEST_ACTIVE = 'active'
@@ -77,7 +77,7 @@ class Instance(Resource):
 
         for volume_dict in self._volumes:
             volume = self.stack.get_resource_by_name(
-                volume_dict['VolumeID']
+                get(volume_dict, ['VolumeId', 'volume_id'])
             )
 
             if volume:
@@ -179,10 +179,10 @@ class Instance(Resource):
 
             for volume_dict in self._volumes:
                 volume_id = self._get_volume_id(
-                    volume_dict['VolumeId']
+                    get(volume_dict, ['VolumeId', 'volume_id'])
                 )
                 # volume = get_volume(volume_id)
-                mountpoint = volume_dict['Device']
+                mountpoint = get(volume_dict, ['Device', 'device'])
 
                 self._logger.debug(
                     'Attaching volume %s to %s an %s',

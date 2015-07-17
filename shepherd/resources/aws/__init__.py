@@ -42,7 +42,7 @@ def get_security_group(group_id=None, group_name=None, stack=None):
     elif group_id:
         resp = conn.get_all_security_groups(group_ids=[group_id])
 
-    if resp is not None and len(resp) == 1:
+    if resp and len(resp) == 1 and resp[0]:
         result = resp[0]
 
     return result

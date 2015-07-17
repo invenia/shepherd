@@ -89,7 +89,7 @@ class SecurityGroupIngress(Resource):
             self._src_group_id = get_security_group(
                 group_name=self._src_security_group_name,
                 stack=self.stack
-            )
+            ).id
 
     def _exec(self, operation):
         return operation(
