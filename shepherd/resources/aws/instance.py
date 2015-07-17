@@ -119,8 +119,16 @@ class Instance(Resource):
                 retries=self.stack.settings['retries'],
                 delay=self.stack.settings['delay']
             ),
-            create_task('create_tags', self._create_tags, ('check_running',)),
-            create_task('attach_volumes', self.attach_volumes, ('create_tags',)),
+            create_task(
+                'create_tags', self._create_tags, ('check_running',),
+                retries=self.stack.settings['retries'],
+                delay=self.stack.settings['delay']
+            ),
+            create_task(
+                'attach_volumes', self.attach_volumes, ('create_tags',),
+                retries=self.stack.settings['retries'],
+                delay=self.stack.settings['delay']
+            ),
             create_task(
                 'check_initialized', self._check_reachable, ('create_tags',),
                 retries=self.stack.settings['retries'],
