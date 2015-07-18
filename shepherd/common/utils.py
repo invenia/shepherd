@@ -205,11 +205,16 @@ def configure_logging(verbosity, logformat=LOGFORMAT):
             5. Root logger = DEBUG; shepherd logger = DEBUG
 
         logformat (str, optional): an alternative format string.
+
+    NOTE: for verbosity level lower than 4 the boto logger is set to
+        CRITICAl as it tends to be noisy when shepherd is catching
+        a lot of exceptions for you.
     """
     if verbosity > 0:
         logging.basicConfig(format=logformat)
         logging.getLogger().setLevel(logging.WARNING)
         logging.getLogger('shepherd').setLevel(logging.WARNING)
+        logging.getLogger('boto').setLevel(logging.CRITICAL)
 
         if verbosity == 2:
             logging.getLogger('shepherd').setLevel(logging.INFO)

@@ -56,7 +56,7 @@ class SecurityGroup(Resource):
     def destroy(self):
         conn = boto.connect_ec2()
         logger = self._logger
-        if self._group_id is not None and get_security_group(group_id=self._group_id):
+        if self._group_id and get_security_group(group_id=self._group_id):
             resp = catch_response_errors(
                 conn.delete_security_group,
                 kwargs={'group_id': self._group_id},
@@ -71,8 +71,6 @@ class SecurityGroup(Resource):
                     'EC2 Security Group %s successfully destroyed',
                     self._local_name
                 )
-                self._group_id = None
-                self._available = False
             else:
                 raise StackError(
                     'Failed to destroy EC2 Security Group {}. ID={}'
@@ -84,6 +82,9 @@ class SecurityGroup(Resource):
                 'Group does not exist anymore. Setting EC2 Security '
                 'Group %s to unavailable', self._local_name
             )
+
+        self._available = False
+        self._group_id = None
 
     def _create_group(self):
         """ Handles the creation request """

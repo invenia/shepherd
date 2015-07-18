@@ -14,7 +14,7 @@ from boto.exception import EC2ResponseError
 
 ALLOWED_ERRORS = {
     'volume_not_found': "The volume '{}' does not exist",
-    'securitygroup_not_found': "The security group {} does not exist",
+    'securitygroup_not_found': "The security group '{}' does not exist",
     'instance_not_found': "The instance ID '{}' does not exist",
 }
 
@@ -129,7 +129,7 @@ def get_volume(volume_id):
         allowed=ALLOWED_ERRORS['volume_not_found'].format(volume_id)
     )
 
-    if resp is not None and len(resp) == 1:
+    if resp and isinstance(resp, list) and len(resp) == 1:
         result = resp[0]
 
     return result
