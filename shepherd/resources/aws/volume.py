@@ -77,9 +77,20 @@ class Volume(Resource):
     def destroy(self):
         if self._volume_id and get_volume(self._volume_id):
             conn = boto.connect_ec2()
-            rc = conn.delete_volume(self._volume_id)
+            allowed_error = "The volume '{}' does not exist.".format(self._volume_id)
+            try:
+                resp = conn.delete_volume(self._volume_id)
+            except EC2ResponseError as exc:
+                if allowed_error in exc.body:
+                    self._logger.warn(
+                        '%s (%s) does not exist and probably has already '
+                        'been destroyed.', self._local_name, self._volume_id
+                    )
+                    resp = True
+                else:
+                    raise
 
-            if not rc:
+            if not resp:
                 StackError(
                     'Failed to destroy Volume {}. ID={}\n'
                     .format(self._local_name, self._volume_id),

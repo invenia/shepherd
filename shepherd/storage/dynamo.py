@@ -70,15 +70,18 @@ def dedynamize(stack):
         del stack[key]
 
     for key in stack:
-        try:
-            if stack[key] == "None":
-                stack[key] = None
-            elif stack[key] == "N/A":
-                stack[key] = ""
-            else:
+        if stack[key] == "None":
+            stack[key] = None
+        elif stack[key] == "N/A":
+            stack[key] = ""
+        else:
+            try:
                 stack[key] = json.loads(stack[key])
-        except(TypeError, ValueError) as exc:
-            logger.exception(exc)
+            except (TypeError, ValueError) as exc:
+                logger.warn(
+                    "%s caught when trying to load the json string %s.",
+                    exc.__class__.__name__, stack[key]
+                )
 
 
 class DynamoStorage(Storage):

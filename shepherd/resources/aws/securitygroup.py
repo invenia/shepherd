@@ -62,7 +62,6 @@ class SecurityGroup(Resource):
             resp = None
             try:
                 resp = conn.delete_security_group(group_id=self._group_id)
-
             except EC2ResponseError as exc:
                 if allowed_error in exc.body:
                     self._logger.warn(
