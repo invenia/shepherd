@@ -11,7 +11,7 @@ from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
 from shepherd.common.utils import tasks_passed, get, dict_contains
-from shepherd.resources.aws import get_security_group
+from shepherd.resources.aws import get_security_group, catch_response_errors, ALLOWED_ERRORS
 
 SPOT_REQUEST_ACTIVE = 'active'
 SPOT_REQUEST_FULFILLED = 'fulfilled'
@@ -255,20 +255,17 @@ class Instance(Resource):
         if self._instance_id:
             if not self._terminated:
                 self._logger.debug('Terminating instance %s', self._local_name)
-                allowed_error = "The instance ID '{}' does not exist".format(self._instance_id)
-                try:
-                    conn.terminate_instances(
-                        instance_ids=[self._instance_id]
+
+                resp = catch_response_errors(
+                    conn.terminate_instances,
+                    kwargs={'instance_ids': [self._instance_id]},
+                    allowed=ALLOWED_ERRORS['instance_not_found'].format(self._instance_id),
+                    msg='{} ({}) no longer exists. Skipping.'.format(
+                        self._local_name, self._instance_id
                     )
-                except EC2ResponseError as exc:
-                    if allowed_error in exc.body:
-                        self._logger.warn(
-                            '%s (%s) does not exist and probably has already '
-                            'been destroyed.', self._local_name, self._instance_id
-                        )
-                        self._instance_id = None
-                    else:
-                        raise
+                )
+                if resp:
+                    self._instance_id = None
 
         self._terminated = True
         return self._terminated

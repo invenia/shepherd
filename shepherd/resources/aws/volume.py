@@ -9,7 +9,7 @@ from arbiter.sync import run_tasks
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
 from shepherd.common.utils import pascal_to_underscore, tasks_passed
-from shepherd.resources.aws import get_volume
+from shepherd.resources.aws import get_volume, catch_response_errors, ALLOWED_ERRORS
 
 DEFAULT_VOL_SIZE = 128
 
@@ -77,18 +77,14 @@ class Volume(Resource):
     def destroy(self):
         if self._volume_id and get_volume(self._volume_id):
             conn = boto.connect_ec2()
-            allowed_error = "The volume '{}' does not exist.".format(self._volume_id)
-            try:
-                resp = conn.delete_volume(self._volume_id)
-            except EC2ResponseError as exc:
-                if allowed_error in exc.body:
-                    self._logger.warn(
-                        '%s (%s) does not exist and probably has already '
-                        'been destroyed.', self._local_name, self._volume_id
-                    )
-                    resp = True
-                else:
-                    raise
+            resp = catch_response_errors(
+                conn.delete_volume,
+                args=(self._volume_id,),
+                allowed=ALLOWED_ERRORS['volume_not_found'].format(self._volume_id),
+                msg='{} ({}) no longer exists. Skipping.'.format(
+                    self._local_name, self._volume_id
+                )
+            )
 
             if not resp:
                 StackError(

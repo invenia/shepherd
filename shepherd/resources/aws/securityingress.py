@@ -1,11 +1,10 @@
 from __future__ import print_function
 
 import boto
-from boto.exception import EC2ResponseError
 
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
-from shepherd.resources.aws import get_security_group
+from shepherd.resources.aws import get_security_group, catch_response_errors
 
 
 class SecurityGroupIngress(Resource):
@@ -74,18 +73,15 @@ class SecurityGroupIngress(Resource):
         conn = boto.connect_ec2()
         allowed_error = "The security group \'{}\' does not exist".format(self._group_id)
 
-        try:
-            resp = self._exec(conn.revoke_security_group)
-        except EC2ResponseError as exc:
-            if allowed_error in exc.body:
-                self._logger.warn(
-                    '%s has already destroyed because security group '
-                    '%s no longer exists.', self._local_name, self._group_id
-                )
-            else:
-                raise
+        resp = catch_response_errors(
+            self._exec,
+            args=(conn.revoke_security_group,),
+            allowed=allowed_error,
+            msg='{} no longer exists and as a result neither does {}. Skipping.'.format(
+                self._group_id, self._local_name)
+        )
 
-        if resp:
+        if resp is None or resp:
             self._available = False
         else:
             raise StackError(
