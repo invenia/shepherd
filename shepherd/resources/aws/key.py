@@ -54,6 +54,11 @@ class AccessKey(Resource):
 
         return deps
 
+    def sync(self):
+        if self._access_key_id:
+            if not self._check_created():
+                self._check_deleted
+
     @Resource.validate_create()
     def create(self):
         # Only try and create the accesskey if we haven't tried to

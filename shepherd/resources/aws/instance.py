@@ -5,13 +5,20 @@ import boto
 from boto.ec2.blockdevicemapping import BlockDeviceMapping
 from boto.ec2.blockdevicemapping import BlockDeviceType
 from boto.exception import EC2ResponseError
+from functools import partial
 
 from arbiter import create_task
 from arbiter.sync import run_tasks
 
 from shepherd.common.plugins import Resource
 from shepherd.common.utils import tasks_passed, get, dict_contains
-from shepherd.resources.aws import get_security_group, catch_response_errors, ALLOWED_ERRORS
+from shepherd.resources.aws import (
+    get_security_group,
+    catch_response_errors,
+    ALLOWED_ERRORS,
+    create_tags,
+    sync_tags
+)
 
 SPOT_REQUEST_ACTIVE = 'active'
 SPOT_REQUEST_FULFILLED = 'fulfilled'
@@ -97,6 +104,19 @@ class Instance(Resource):
     def ip(self):
         return self._ip
 
+    @property
+    def resource_id(self):
+        return self._instance_id
+
+    def sync(self):
+        if self._instance_id:
+            self._tags = sync_tags(self._instanced_id, self._tags)
+            if not self._check_terminated():
+                self._check_running()
+                self._check_reachable()
+        else:
+            self._available = False
+
     @Resource.validate_create()
     def create(self):
         """
@@ -120,7 +140,7 @@ class Instance(Resource):
                 delay=self.stack.settings['delay']
             ),
             create_task(
-                'create_tags', self._create_tags, ('check_running',),
+                'create_tags', partial(create_tags, self), ('check_running',),
                 retries=self.stack.settings['retries'],
                 delay=self.stack.settings['delay']
             ),
@@ -179,7 +199,7 @@ class Instance(Resource):
 
         return tasks_passed(
             results, self._logger,
-            msg='Failed to de provision instance {}'.format(self._local_name)
+            msg='Failed to deprovision instance {}'.format(self._local_name)
         )
 
     # Might want to organize this and create tags better
@@ -273,45 +293,52 @@ class Instance(Resource):
     def _check_running(self):
         self._logger.debug('Checking if instance %s is running', self._local_name)
         resp = False
-        assert self._instance_id
-        conn = boto.connect_ec2()
-        instances = conn.get_only_instances(
-            instance_ids=[self._instance_id]
-        )
-        assert len(instances) == 1
-        instance = instances[0]
-        if instance.state == INST_RUNNING_STATE:
-            self._terminated = False
-            self._ip = instance.ip_address
-            resp = True
+        if self._instance_id:
+            conn = boto.connect_ec2()
+            instances = catch_response_errors(
+                conn.get_only_instances,
+                kwargs={'instance_ids': [self._instance_id]},
+                allowed=ALLOWED_ERRORS['instance_not_found'].format(self._instance_id),
+            )
+
+            if instances and isinstance(instances, list) and len(instances) == 1:
+                instance = instances[0]
+                if instance.state == INST_RUNNING_STATE:
+                    self._terminated = False
+                    self._ip = instance.ip_address
+                    resp = True
 
         return resp
 
     def _check_reachable(self):
         self._logger.debug('Checking if instance %s is reachable', self._local_name)
         resp = False
-        assert self._instance_id
-        conn = boto.connect_ec2()
-        status = conn.get_all_instance_status(
-            instance_ids=[self._instance_id]
-        )
+        if self._instance_id:
+            conn = boto.connect_ec2()
+            status = catch_response_errors(
+                conn.get_all_instance_status,
+                kwargs={'instance_ids': [self._instance_id]},
+                allowed=ALLOWED_ERRORS['instance_not_found'].format(self._instance_id),
+            )
 
-        if len(status) > 0:
-            if status[0].system_status.details['reachability'] == INST_REACHABLE_STATE:
-                resp = True
-            else:
-                self._logger.debug(
-                    'Reachability Status = %s',
-                    status[0].system_status.details['reachability']
-                )
+            if status and isinstance(status, list) and len(status) > 0:
+                if status[0].system_status.details['reachability'] == INST_REACHABLE_STATE:
+                    resp = True
+                else:
+                    self._logger.debug(
+                        'Reachability Status = %s',
+                        status[0].system_status.details['reachability']
+                    )
 
         return resp
 
     def _check_terminated(self):
         conn = boto.connect_ec2()
         if self._instance_id:
-            reservation = conn.get_all_instances(
-                instance_ids=[self._instance_id]
+            reservation = catch_response_errors(
+                conn.get_all_instances,
+                kwargs={'instance_ids': [self._instance_id]},
+                allowed=ALLOWED_ERRORS['instance_not_found'].format(self._instance_id),
             )[0]
             instance = reservation.instances[0]
 
@@ -349,6 +376,8 @@ class Instance(Resource):
         self._logger.debug('Creating tags for instance %s', self._local_name)
         if not dict_contains(self._tags, self.stack.tags):
             self._tags.update(self.stack.tags)
+
+        self._tags['Name'] = self._global_name
 
         try:
             conn.create_tags([self._instance_id], self._tags)

@@ -2,6 +2,8 @@ from __future__ import print_function
 
 import boto
 
+from functools import partial
+
 from arbiter import create_task
 from arbiter.sync import run_tasks
 
@@ -9,7 +11,13 @@ from arbiter.sync import run_tasks
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
 from shepherd.common.utils import pascal_to_underscore, tasks_passed
-from shepherd.resources.aws import get_volume, catch_response_errors, ALLOWED_ERRORS
+from shepherd.resources.aws import (
+    get_volume,
+    catch_response_errors,
+    ALLOWED_ERRORS,
+    create_tags,
+    sync_tags
+)
 
 DEFAULT_VOL_SIZE = 128
 
@@ -39,6 +47,10 @@ class Volume(Resource):
     def volume_id(self):
         return self._volume_id
 
+    @property
+    def resource_id(self):
+        return self._volume_id
+
     def deserialize(self, data):
         super(Volume, self).deserialize(data)
 
@@ -55,12 +67,21 @@ class Volume(Resource):
 
         return deps
 
+    def sync(self):
+        if self._volume_id:
+            self._tags = sync_tags(self._volume_id, self._tags)
+            self.check_created()
+
     @Resource.validate_create()
     def create(self):
         tasks = (
             create_task('check_snapshot', self._check_snapshot),
             create_task('create_volume', self._create_volume, ('check_snapshot',)),
-            create_task('create_tags', self._create_tags, ('create_volume',)),
+            create_task(
+                'create_tags', partial(create_tags, self), ('create_volume',),
+                retries=self.stack.settings['retries'],
+                delay=self.stack.settings['delay']
+            ),
             create_task(
                 'check_created', self._check_created, ('create_volume',),
                 retries=self.stack.settings['retries'],
@@ -123,12 +144,6 @@ class Volume(Resource):
                     logger=self._logger
                 )
 
-        return True
-
-    def _create_tags(self):
-        conn = boto.connect_ec2()
-        self._tags.update(self.stack.tags)
-        conn.create_tags(self._volume_id, self._tags)
         return True
 
     def _check_snapshot(self):

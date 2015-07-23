@@ -347,6 +347,17 @@ class Resource(IPlugin):
             'not implemented in a subclass'
         )
 
+    @abstractmethod
+    def sync(self):
+        """
+        Tells a resource to try and synchronize its state with
+        its provider if necessary.
+        """
+        raise NotImplementedError(
+            'The abstractmethod "sync" was '
+            'not implemented in a subclass'
+        )
+
 
 def is_plugin(cls):
     """

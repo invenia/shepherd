@@ -12,6 +12,8 @@ import logging
 
 from boto.exception import EC2ResponseError
 
+from shepherd.common.utils import dict_contains
+
 ALLOWED_ERRORS = {
     'volume_not_found': "The volume '{}' does not exist",
     'securitygroup_not_found': "The security group '{}' does not exist",
@@ -133,3 +135,60 @@ def get_volume(volume_id):
         result = resp[0]
 
     return result
+
+
+def get_tags(resource_id):
+    """
+    Returns the dictionary of key and value tags for the given
+    ec2 resource id.
+    """
+    conn = boto.connect_ec2()
+    filters = {'resource-id': resource_id}
+    resp = conn.get_all_tags(filters=filters)
+    tags = {}
+
+    for tag in resp:
+        tags[tag.name] = tag.value
+
+    return tags
+
+
+def create_tags(obj):
+    """
+    Handles tagging the resource with the obj tags and global_name.
+    Returns True assuming there isn't an EC2ResponseError otherwise it'll return False.
+    """
+    conn = boto.connect_ec2()
+    logger = logging.getLogger(__name__)
+    logger.debug('Creating tags for resource %s', obj.local_name)
+    if not dict_contains(obj.tags, obj.stack.tags):
+        obj.tags.update(obj.stack.tags)
+
+    obj.tags['Name'] = obj.local_name
+
+    try:
+        conn.create_tags([obj.resource_id], obj.tags)
+        return True
+    except EC2ResponseError as exc:
+        logger.warn(exc.body)
+        return False
+
+
+def sync_tags(resource_id, curr_tags):
+    """
+    Synchronizes the curr_tags for the resource with the aws tags.
+
+    NOTE: For now this sync is none destructive ie: tags that have been deleted on
+    AWS will not be deleted for the resource and vice versa.
+    """
+    logger = logging.getLogger(__name__)
+    aws_tags = get_tags(resource_id)
+    new_tags = curr_tags
+
+    for key in aws_tags:
+        if key not in curr_tags or aws_tags[key] != curr_tags[key]:
+            logger.info(
+                "%s tag %s updated from %s to %s",
+                resource_id, key, curr_tags[key], aws_tags[key]
+            )
+            new_tags[key] = aws_tags[key]

@@ -32,6 +32,9 @@ class User(Resource):
 
         return deps
 
+    def sync(self):
+        pass
+
     @Resource.validate_create()
     def create(self):
         self._global_name = self.stack.get_global_resource_name(self._local_name)

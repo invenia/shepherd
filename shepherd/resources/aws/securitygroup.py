@@ -10,10 +10,18 @@ import boto
 from arbiter import create_task
 from arbiter.sync import run_tasks
 
+from functools import partial
+
 from shepherd.common.plugins import Resource
 from shepherd.common.exceptions import StackError
 from shepherd.common.utils import tasks_passed
-from shepherd.resources.aws import get_security_group, catch_response_errors, ALLOWED_ERRORS
+from shepherd.resources.aws import (
+    get_security_group,
+    catch_response_errors,
+    ALLOWED_ERRORS,
+    create_tags,
+    sync_tags
+)
 
 
 class SecurityGroup(Resource):
@@ -27,6 +35,10 @@ class SecurityGroup(Resource):
             'group_description': '_group_description'
         })
 
+    @property
+    def resource_id(self):
+        return self._group_id
+
     def get_dependencies(self):
         deps = []
         self._logger.debug(
@@ -35,10 +47,20 @@ class SecurityGroup(Resource):
 
         return deps
 
+    def sync(self):
+        if self._group_id:
+            self._tags = sync_tags(self._group_id, self._tags)
+            self._check_created()
+
     @Resource.validate_create()
     def create(self):
         tasks = (
             create_task('create', self._create_group),
+            create_task(
+                'tag', partial(create_tags, self), ('create',),
+                retries=self.stack.settings["retries"],
+                delay=self.stack.settings["delay"]
+            ),
             create_task(
                 'check', self._check_created, ('create',),
                 retries=self.stack.settings["retries"],

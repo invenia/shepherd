@@ -48,6 +48,9 @@ class SecurityGroupIngress(Resource):
 
         return deps
 
+    def sync(self):
+        pass
+
     # I may not be making these request properly
     # documentation appears to say I can either make a port based rule
     # with an ip OR a group based rule with source group id
