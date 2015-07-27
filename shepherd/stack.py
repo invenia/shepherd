@@ -486,22 +486,25 @@ class Stack(object):
                     # Simply deserialize the stack
                     resource.deserialize(rsrc_dict)
 
-                    # Add stack tags to resource if they
-                    # aren't already there ie: this will add stack level
-                    # tags to resource that are being deserialized from a manifest.
-                    newtags = resource.tags
-                    newtags.update(self._tags)
-                    resource.tags = newtags
-
-                    # Set the stack reference on the resource to our stack.
-                    resource.stack = self
-
-                    self._resources.append(resource)
+                    self.add_resource(resource)
                 else:
                     raise PluginError(
                         'Failed to locate resource named {} for provider {}'
                         .format(classname, rsrc_dict['provider'].lower())
                     )
+
+    def add_resource(self, resource):
+        # Add stack tags to resource if they
+        # aren't already there ie: this will add stack level
+        # tags to resource that are being deserialized from a manifest.
+        newtags = resource.tags
+        newtags.update(self._tags)
+        resource.tags = newtags
+
+        # Set the stack reference on the resource to our stack.
+        resource.stack = self
+
+        self._resources.append(resource)
 
     def _get_inverse_dependencies(self, resources):
         """

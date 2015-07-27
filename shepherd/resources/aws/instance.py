@@ -111,11 +111,7 @@ class Instance(Resource):
     def sync(self):
         if self._instance_id:
             self._tags = sync_tags(self._instanced_id, self._tags)
-            if not self._check_terminated():
-                self._check_running()
-                self._check_reachable()
-        else:
-            self._available = False
+            # Maybe update the list of volumes and the ip.
 
     @Resource.validate_create()
     def create(self):
@@ -197,7 +193,7 @@ class Instance(Resource):
         )
         results = run_tasks(tasks)
 
-        return tasks_passed(
+        self._available = not tasks_passed(
             results, self._logger,
             msg='Failed to deprovision instance {}'.format(self._local_name)
         )
@@ -333,6 +329,7 @@ class Instance(Resource):
         return resp
 
     def _check_terminated(self):
+        resp = False
         conn = boto.connect_ec2()
         if self._instance_id:
             reservation = catch_response_errors(
@@ -343,12 +340,12 @@ class Instance(Resource):
             instance = reservation.instances[0]
 
             if instance.state == 'terminated':
-                self._available = False
                 self._instance_id = None
+                resp = True
         else:
-            self._available = False
+            resp = True
 
-        return not self._available
+        return resp
 
     def _check_spot(self):
         self._logger.debug(

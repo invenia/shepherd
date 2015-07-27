@@ -30,6 +30,34 @@ class SecurityGroupIngress(Resource):
             'to_port': '_to_port',
         })
 
+    def __eq__(self, other):
+        """
+        Determines if two security groups are equivalent.
+        """
+        # The group is the same if either the names match or
+        # the ids match.
+        group = (
+            self._group_name == other._group_name or
+            self._group_id == other._group_id
+        )
+
+        # The source matches if the names or the ids match.
+        # Or if the they are using the same cidr_ip.
+        source = (
+            self._src_security_group_name == other._src_security_group_name or
+            self._src_group_id == other._src_group_id or
+            self._cidr_ip == other._cidr_ip
+        )
+
+        # Return true if the group an source are the same for the same
+        # protocol and ports.
+        return (
+            group and source and
+            self._ip_protocol == other._ip_protocol and
+            self._from_port == other._from_port and
+            self._to_port == other._to_port
+        )
+
     def get_dependencies(self):
         deps = []
 
@@ -49,6 +77,9 @@ class SecurityGroupIngress(Resource):
         return deps
 
     def sync(self):
+        """
+        For now we won't do any syncing.
+        """
         pass
 
     # I may not be making these request properly

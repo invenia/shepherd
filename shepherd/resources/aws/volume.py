@@ -70,7 +70,8 @@ class Volume(Resource):
     def sync(self):
         if self._volume_id:
             self._tags = sync_tags(self._volume_id, self._tags)
-            self.check_created()
+            if not self._check_created():
+                self._available = False
 
     @Resource.validate_create()
     def create(self):
@@ -89,7 +90,7 @@ class Volume(Resource):
             ),
         )
         results = run_tasks(tasks)
-        return tasks_passed(
+        self._available = tasks_passed(
             results, self._logger,
             msg='Failed to provision volume {}'.format(self._local_name)
         )
@@ -165,16 +166,12 @@ class Volume(Resource):
         return True
 
     def _check_created(self):
+        resp = False
         volume = get_volume(self._volume_id)
         if volume:
             self._logger.debug('Volume status = %s', volume.status)
 
             if volume.status == 'available':
-                self._available = True
+                resp = True
 
-            else:
-                self._available = False
-        else:
-            self._available = False
-
-        return self._available
+        return resp

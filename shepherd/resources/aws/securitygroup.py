@@ -22,6 +22,7 @@ from shepherd.resources.aws import (
     create_tags,
     sync_tags
 )
+from shepherd.resources.aws.securityingress import SecurityGroupIngress
 
 
 class SecurityGroup(Resource):
@@ -48,9 +49,37 @@ class SecurityGroup(Resource):
         return deps
 
     def sync(self):
+        """
+        Updates the tags as usual, but also handles detecting new ingresses
+        and adding them to the stack.
+        """
         if self._group_id:
             self._tags = sync_tags(self._group_id, self._tags)
-            self._check_created()
+            grp = get_security_group(group_ids=self._group_id)
+            ingresses = self.stack.get_resource_by_type('SecurityGroupIngress')
+
+            if grp:
+                for rule in grp.rules:
+                    for grant in rule.grants:
+                        new_ingress = SecurityGroupIngress()
+                        new_ingress.deserialize({
+                            'group_id': self._group_id,
+                            'group_name': self._global_name,
+                            'src_group_id': grant.group_id,
+                            'src_security_group_name': grant.name,
+                            'cidr_ip': grant.cidr_ip,
+                            'to_port': rule.to_port,
+                            'from_port': rule.from_port,
+                            'ip_protocol': rule.ip_protocol,
+                        })
+
+                        for ingress in ingresses:
+                            if new_ingress == ingress:
+                                self.stack.add_resource(new_ingress)
+            else:
+                self._available = False
+        else:
+            self._available = False
 
     @Resource.validate_create()
     def create(self):
@@ -69,7 +98,7 @@ class SecurityGroup(Resource):
         )
         results = run_tasks(tasks)
 
-        return tasks_passed(
+        self._available = tasks_passed(
             results, self._logger,
             msg='Failed to provision security group {}'.format(self._local_name)
         )
@@ -136,6 +165,6 @@ class SecurityGroup(Resource):
                 'EC2 Security Group %s is now available.',
                 self._local_name
             )
-            self._available = True
+            return True
 
-        return self._available
+        return False

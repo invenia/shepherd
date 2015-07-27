@@ -73,7 +73,7 @@ class AccessKey(Resource):
             )
         )
         results = run_tasks(tasks)
-        return tasks_passed(
+        self._available = tasks_passed(
             results, self._logger,
             msg='Failed to provision key {}'.format(self._local_name)
         )
@@ -90,7 +90,7 @@ class AccessKey(Resource):
         )
         results = run_tasks(tasks)
 
-        return tasks_passed(
+        self._available = not tasks_passed(
             results, self._logger,
             msg='Failed to deprovision key {}'.format(self._local_name)
         )
@@ -137,15 +137,15 @@ class AccessKey(Resource):
             self._logger.debug(
                 'AccessKey %s is now available.', self._local_name
             )
-            self._available = True
+            return True
 
-        return self._available
+        return False
 
     def _check_deleted(self):
         """ Performs a check to ensure that the key was successfully deleted """
         if not get_access_key(self._global_name, self._access_key_id):
             self._logger.debug('AccessKey %s deleted', self._local_name)
             self._access_key_id = None
-            self._available = False
+            return True
 
-        return not self._available
+        return False
